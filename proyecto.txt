@@ -1,0 +1,846 @@
+La meta sería que puedas pasar de:
+
+movie.mkv
+   ↓
+🎬 AI Movie Translator
+   ↓
+movie.es.mkv
+
+con subtítulos y, posteriormente, doblaje.
+
+1. Arquitectura general
+                    ┌──────────────────────────┐
+                    │     AI MOVIE TRANSLATOR   │
+                    └────────────┬─────────────┘
+                                 │
+                ┌────────────────▼────────────────┐
+                │         ORCHESTRATOR            │
+                │   Pipeline / Jobs / Progress     │
+                └───────┬──────────┬──────────────┘
+                        │          │
+          ┌─────────────▼───┐  ┌──▼──────────────┐
+          │ AUDIO PROCESSOR │  │ VIDEO PROCESSOR │
+          └─────────┬───────┘  └─────────────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ VOICE SEPARATION  │
+          │ Demucs / similar  │
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │   TRANSCRIPTION   │
+          │ faster-whisper    │
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ SPEAKER DIARIZE   │
+          │ Who spoke when?   │
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ TRANSLATION       │
+          │ LLM / local model │
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ VOICE SYNTHESIS   │
+          │ TTS                │
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ AUDIO MIXER       │
+          │ voices + SFX + OST│
+          └─────────┬─────────┘
+                    │
+          ┌─────────▼─────────┐
+          │ FINAL VIDEO       │
+          │ FFmpeg             │
+          └───────────────────┘
+2. Lo más importante: no hacer todo de golpe
+
+Yo dividiría el proyecto en 4 niveles.
+
+Nivel 1 — Subtítulos
+VIDEO
+ ↓
+Whisper
+ ↓
+transcript.json
+ ↓
+traducción
+ ↓
+.srt
+
+Resultado:
+
+movie.mkv
+movie.es.srt
+
+Esto debería ser nuestro primer objetivo.
+
+Nivel 2 — Voces
+
+Después:
+
+movie.es.srt
+     ↓
+TTS
+     ↓
+dialogue_es.wav
+
+Todavía no reemplazamos el audio original.
+
+Podemos escuchar el doblaje independientemente.
+
+Nivel 3 — Separación + mezcla
+
+Aquí empieza el verdadero proyecto:
+
+Original audio
+      │
+      ▼
+ ┌───────────┐
+ │  Demucs   │
+ └─────┬─────┘
+       │
+       ├── vocals
+       ├── music
+       └── effects
+
+Luego:
+
+music
+effects
+   +
+Spanish voices
+   ↓
+final_mix.wav
+Nivel 4 — Película completa
+
+Finalmente:
+
+original_video
+       +
+final_mix.wav
+       ↓
+FFmpeg
+       ↓
+movie_es.mkv
+3. Stack que utilizaría
+
+Para tu caso, Python sería mejor que TypeScript para el motor multimedia/IA.
+
+Podemos hacer:
+
+Python
+├── PyTorch
+├── faster-whisper
+├── FFmpeg
+├── Demucs
+├── TTS
+├── pyannote.audio
+└── FastAPI
+
+Y opcionalmente una interfaz:
+
+Frontend
+   │
+   ▼
+FastAPI
+   │
+   ▼
+Pipeline Python
+
+Pero inicialmente ni siquiera necesitamos frontend.
+
+Podría ser CLI:
+
+movie-translator translate movie.mkv --to es
+4. Estructura del proyecto
+
+Yo lo organizaría así:
+
+ai-movie-translator/
+│
+├── apps/
+│   ├── cli/
+│   └── api/
+│
+├── src/
+│   ├── core/
+│   │   ├── models/
+│   │   ├── pipeline/
+│   │   ├── jobs/
+│   │   └── config/
+│   │
+│   ├── media/
+│   │   ├── ffmpeg/
+│   │   ├── audio/
+│   │   └── video/
+│   │
+│   ├── transcription/
+│   │   ├── whisper/
+│   │   └── diarization/
+│   │
+│   ├── translation/
+│   │   ├── local/
+│   │   ├── openai/
+│   │   ├── anthropic/
+│   │   └── ollama/
+│   │
+│   ├── tts/
+│   │   ├── local/
+│   │   └── providers/
+│   │
+│   └── mixing/
+│
+├── models/
+│
+├── projects/
+│
+├── tests/
+│
+├── docs/
+│
+├── pyproject.toml
+└── README.md
+5. La idea de projects/
+
+Esta parte me parece especialmente importante.
+
+No queremos procesar una película como una caja negra.
+
+Cada película tendría su propio proyecto:
+
+projects/
+└── matrix/
+    │
+    ├── source/
+    │   └── matrix.mkv
+    │
+    ├── audio/
+    │   ├── original.wav
+    │   ├── vocals.wav
+    │   ├── music.wav
+    │   └── effects.wav
+    │
+    ├── transcription/
+    │   ├── original.json
+    │   └── speakers.json
+    │
+    ├── translation/
+    │   ├── draft.json
+    │   └── final.json
+    │
+    ├── voices/
+    │   ├── speaker_01.wav
+    │   ├── speaker_02.wav
+    │   └── ...
+    │
+    ├── subtitles/
+    │   ├── original.srt
+    │   └── spanish.srt
+    │
+    ├── output/
+    │   └── matrix_es.mkv
+    │
+    └── project.json
+
+Esto permite reanudar el procesamiento.
+
+Si Whisper ya terminó y mañana vuelves a abrir el programa:
+
+✓ extracción
+✓ separación
+✓ transcripción
+→ traducción
+○ TTS
+○ mezcla
+
+No vuelve a gastar horas procesando todo.
+
+6. Modelo de datos
+
+Podemos tener algo parecido a:
+
+{
+  "project": "matrix",
+  "source_language": "en",
+  "target_language": "es",
+  "status": "translation",
+  "source": {
+    "file": "source/matrix.mkv",
+    "duration": 8160
+  },
+  "stages": {
+    "extraction": "completed",
+    "separation": "completed",
+    "transcription": "completed",
+    "diarization": "completed",
+    "translation": "running",
+    "tts": "pending",
+    "mixing": "pending",
+    "encoding": "pending"
+  }
+}
+7. Transcripción
+
+Aquí usaría faster-whisper.
+
+El resultado no debería ser solamente texto.
+
+Necesitamos:
+
+{
+  "start": 12.42,
+  "end": 15.87,
+  "speaker": "SPEAKER_01",
+  "text": "We need to get out of here."
+}
+
+Esto nos permite conservar:
+
+timestamp inicial
+timestamp final
+personaje
+texto
+confianza
+8. Identificación de personajes
+
+Esta es una parte importante para el doblaje.
+
+Primero obtenemos:
+
+SPEAKER_01
+SPEAKER_02
+SPEAKER_03
+
+Después podemos presentar:
+
+Personajes detectados
+
+SPEAKER_01  █████████████
+SPEAKER_02  █████████
+SPEAKER_03  █████
+
+Y permitir:
+
+SPEAKER_01 → Neo
+SPEAKER_02 → Morpheus
+SPEAKER_03 → Trinity
+
+Entonces configuramos voces:
+
+{
+  "Neo": {
+    "voice": "voice_01"
+  },
+  "Morpheus": {
+    "voice": "voice_02"
+  },
+  "Trinity": {
+    "voice": "voice_03"
+  }
+}
+9. Traducción
+
+Aquí no conviene traducir línea por línea de forma independiente.
+
+Por ejemplo:
+
+I thought you were dead.
+
+You shouldn't have come here.
+
+What are you doing?
+
+La IA debe recibir contexto:
+
+PERSONAJE: Neo
+CONTEXTO: escena de acción
+IDIOMA: inglés
+DESTINO: español mexicano
+
+Líneas:
+...
+
+Y devolver:
+
+{
+  "text": "Pensé que estabas muerto."
+}
+
+La arquitectura debe permitir diferentes proveedores:
+
+TranslationProvider
+       │
+       ├── Ollama
+       ├── OpenAI
+       ├── Anthropic
+       ├── DeepSeek
+       └── cualquier API compatible
+
+Esto encaja muchísimo con la filosofía que ya estás utilizando en DevPilot: el proveedor de IA no debería ser el centro del sistema.
+
+10. TTS
+
+Aquí tenemos dos estrategias.
+
+Local
+texto
+ ↓
+modelo TTS
+ ↓
+wav
+
+Ventaja:
+
+cero coste por minuto.
+
+Desventaja:
+
+necesitamos hardware suficiente y la calidad puede variar.
+
+Cloud
+texto
+ ↓
+API TTS
+ ↓
+voz
+
+Mejor calidad en algunos casos, pero:
+
+120 minutos
+×
+precio/minuto
+=
+💸
+
+Por eso haría una interfaz:
+
+class TTSProvider:
+    def synthesize(...)
+
+y después:
+
+LocalTTS
+ElevenLabsTTS
+OpenAITTS
+...
+11. Sincronización
+
+Este es probablemente uno de los problemas más difíciles.
+
+Supongamos:
+
+Original:
+
+00:31:15 ───────── 00:31:18
+"I don't know what you're talking about."
+
+La traducción puede resultar:
+
+"No sé de qué estás hablando."
+
+El español puede durar menos.
+
+Entonces necesitamos ajustar:
+
+timestamp original
+        ↓
+duración objetivo
+        ↓
+TTS
+        ↓
+time-stretch
+        ↓
+audio final
+
+Por ejemplo:
+
+voz generada = 4.1 s
+espacio disponible = 3.4 s
+
+→ acelerar 17%
+
+Pero no queremos que suene como ardilla 😂.
+
+Por eso habrá límites:
+
+±5%    normal
+±10%   aceptable
+>10%   regenerar/adaptar texto
+12. Separación de audio
+
+Para obtener un resultado decente:
+
+                 AUDIO ORIGINAL
+                       │
+                       ▼
+                    Demucs
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+       Voces        Música       Efectos
+
+Luego eliminamos/reducimos:
+
+Voces originales
+
+pero conservamos:
+
+🎵 soundtrack
+💥 explosiones
+🚪 puertas
+🌧️ lluvia
+👣 pasos
+
+Y agregamos:
+
+🎙️ voces españolas
+
+Resultado:
+
+Música
+   +
+Efectos
+   +
+Voces españolas
+   ↓
+MEZCLA FINAL
+13. FFmpeg
+
+FFmpeg será básicamente nuestro motor de ensamblaje.
+
+Se encargará de:
+
+extraer audio
+convertir formatos
+cortar segmentos
+unir audio
+mezclar pistas
+cambiar volumen
+sincronizar
+codificar
+multiplexar audio/video/subtítulos
+
+Por ejemplo, conceptualmente:
+
+video original
+     +
+audio español
+     +
+subtitles español
+     ↓
+movie_es.mkv
+
+Y podríamos conservar también:
+
+movie_es.mkv
+ ├── video
+ ├── Español
+ ├── Inglés original
+ └── Subtítulos español
+
+Eso estaría bastante bien.
+
+14. Sistema de jobs
+
+No quiero que el programa haga:
+
+translate_movie()
+
+y se quede bloqueado durante horas.
+
+Mejor:
+
+Job Queue
+
+JOB #001
+Extract audio
+
+JOB #002
+Separate voices
+
+JOB #003
+Transcribe
+
+JOB #004
+Diarize
+
+JOB #005
+Translate
+
+JOB #006
+Generate voices
+
+JOB #007
+Mix
+
+JOB #008
+Encode
+
+Cada job:
+
+PENDING
+   ↓
+RUNNING
+   ↓
+COMPLETED
+
+o:
+
+FAILED
+
+Y podemos reintentar solamente ese paso.
+
+15. Interfaz
+
+Una primera versión podría ser CLI:
+
+movie-translator new matrix.mkv
+
+Después:
+
+movie-translator analyze matrix
+
+Resultado:
+
+Movie: Matrix
+Duration: 2h 16m
+Language: English
+Speakers: 14
+
+✓ Audio extracted
+✓ Voice separation
+✓ Transcription
+
+Ready for translation.
+
+Luego:
+
+movie-translator translate matrix --language es
+
+Después:
+
+movie-translator dub matrix --language es
+
+Y finalmente:
+
+movie-translator export matrix
+16. Posteriormente una UI
+
+Cuando el motor funcione:
+
+┌──────────────────────────────────────────────┐
+│ 🎬 Matrix                                    │
+├──────────────────────────────────────────────┤
+│                                              │
+│  Transcripción       ✓                       │
+│  Traducción          ✓                       │
+│  Voces               68%                     │
+│  Mezcla              ○                       │
+│  Exportación         ○                       │
+│                                              │
+│  ███████████████████░░░░░ 68%                │
+│                                              │
+├──────────────────────────────────────────────┤
+│ Personajes                                  │
+│                                              │
+│ Neo       → Voice A                         │
+│ Morpheus  → Voice B                         │
+│ Trinity   → Voice C                         │
+│                                              │
+│             [ Generar doblaje ]              │
+└──────────────────────────────────────────────┘
+17. Hardware
+
+Aquí hay que distinguir dos escenarios.
+
+CPU solamente
+
+Puede funcionar para:
+
+FFmpeg
+traducción
+subtítulos
+procesamiento ligero
+
+Pero Whisper/TTS/separación pueden ser muy lentos.
+
+GPU NVIDIA
+
+Mucho mejor.
+
+Idealmente:
+
+RAM:       32 GB
+GPU:       NVIDIA 12+ GB VRAM
+SSD:       1 TB+
+CPU:       8+ cores
+
+Pero no necesitamos comprar hardware todavía.
+
+Tu idea anterior de aprovechar la laptop que tienes con la pantalla dañada encaja perfectamente para experimentar. Podemos conectarla a un monitor y utilizarla como máquina de procesamiento.
+
+18. Almacenamiento
+
+Aquí hay que tener cuidado.
+
+Una película:
+
+20 GB
+
+puede convertirse temporalmente en:
+
+original              20 GB
+audio                  2 GB
+separated audio        5 GB
+intermediate WAV       10+ GB
+generated voices       2 GB
+final                   20 GB
+────────────────────────
+                      ~59 GB+
+
+Por eso no conviene conservar todos los WAV gigantes indefinidamente.
+
+El sistema debería tener:
+
+CACHE
+TEMP
+PERMANENT
+
+y una función:
+
+movie-translator clean
+
+para borrar intermediarios.
+
+19. Pipeline final
+
+La versión completa quedaría:
+
+                   ┌──────────────┐
+                   │   MOVIE.MKV  │
+                   └──────┬───────┘
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │    FFmpeg     │
+                  └───────┬───────┘
+                          │
+                          ▼
+                    ORIGINAL AUDIO
+                          │
+                          ▼
+                    ┌───────────┐
+                    │  DEMUCS   │
+                    └─────┬─────┘
+                          │
+             ┌────────────┼───────────┐
+             ▼            ▼           ▼
+           VOICE        MUSIC       EFFECTS
+             │
+             ▼
+        FASTER-WHISPER
+             │
+             ▼
+       TRANSCRIPTION
+             │
+             ▼
+       DIARIZATION
+             │
+             ▼
+       SPEAKER TIMELINE
+             │
+             ▼
+        TRANSLATION AI
+             │
+             ▼
+       ADAPTED SCRIPT
+             │
+             ▼
+          TTS ENGINE
+             │
+             ▼
+       GENERATED VOICES
+             │
+             ▼
+       SYNCHRONIZATION
+             │
+             ▼
+       AUDIO MIXER
+        ▲          ▲
+        │          │
+      MUSIC      EFFECTS
+             │
+             ▼
+       FINAL AUDIO
+             │
+             ▼
+          FFMPEG
+             │
+             ▼
+       🎬 MOVIE_ES.MKV
+20. Roadmap que yo seguiría
+
+No empezaría por el doblaje.
+
+Fase 1 — Proof of Concept
+
+Objetivo: película → subtítulos traducidos.
+
+✓ FFmpeg
+✓ faster-whisper
+✓ traducción
+✓ SRT
+Fase 2 — Script inteligente
+✓ speakers
+✓ contexto
+✓ personajes
+✓ adaptación de diálogos
+Fase 3 — TTS
+✓ voces
+✓ selección por personaje
+✓ generación
+✓ sincronización
+Fase 4 — Audio
+✓ separación vocal
+✓ música
+✓ efectos
+✓ mezcla
+Fase 5 — Exportación
+✓ MKV
+✓ audio original
+✓ audio español
+✓ subtítulos
+✓ metadata
+Fase 6 — UI
+✓ proyectos
+✓ progreso
+✓ personajes
+✓ voces
+✓ editor de diálogos
+✓ preview
+Fase 7 — Optimización
+✓ GPU
+✓ cache
+✓ paralelización
+✓ reanudación
+✓ limpieza automática
+Y hay una decisión que tomaría desde el principio
+
+No haría que la IA sea obligatoriamente local.
+
+Diseñaría:
+
+                 MOVIE TRANSLATOR
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+       LOCAL          API           HYBRID
+          │             │             │
+       Whisper       Claude          Whisper
+       Ollama        OpenAI          local
+       TTS local     DeepSeek        +
+                                     API

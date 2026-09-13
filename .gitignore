@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# uv
+uv.lock.bak
+
+# Modelos descargados (pesados, no van a git)
+models/*
+!models/.gitkeep
+
+# Proyectos de peliculas (contienen video/audio pesado, no van a git)
+projects/*
+!projects/.gitkeep
+
+# Salidas y temporales
+*.wav
+*.mkv
+*.mp4
+*.log
+.env
+
+# Sistema
+.DS_Store
+Thumbs.db
