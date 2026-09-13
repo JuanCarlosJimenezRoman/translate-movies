@@ -2323,9 +2323,13 @@ name = "movie-translator"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "av" },
+    { name = "cython" },
+    { name = "faster-whisper" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "rich" },
+    { name = "srt" },
     { name = "tqdm" },
     { name = "typer" },
 ]
@@ -2348,14 +2352,6 @@ separation = [
     { name = "demucs", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
     { name = "demucs", version = "4.1.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
-subtitles = [
-    { name = "srt" },
-]
-transcription = [
-    { name = "av" },
-    { name = "cython" },
-    { name = "faster-whisper" },
-]
 translation-anthropic = [
     { name = "anthropic" },
 ]
@@ -2369,11 +2365,11 @@ translation-openai = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'translation-anthropic'", specifier = ">=0.34" },
-    { name = "av", marker = "extra == 'transcription'", specifier = "==13.1.0" },
-    { name = "cython", marker = "extra == 'transcription'", specifier = ">=3.0" },
+    { name = "av", specifier = "==13.1.0" },
+    { name = "cython", specifier = ">=3.0" },
     { name = "demucs", marker = "extra == 'separation'", specifier = ">=4.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.111" },
-    { name = "faster-whisper", marker = "extra == 'transcription'", specifier = ">=1.0" },
+    { name = "faster-whisper", specifier = ">=1.0" },
     { name = "httpx", marker = "extra == 'translation-ollama'", specifier = ">=0.27" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "openai", marker = "extra == 'translation-openai'", specifier = ">=1.40" },
@@ -2384,12 +2380,12 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rich", specifier = ">=13.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
-    { name = "srt", marker = "extra == 'subtitles'", specifier = ">=3.5" },
+    { name = "srt", specifier = ">=3.5" },
     { name = "tqdm", specifier = ">=4.66" },
     { name = "typer", specifier = ">=0.12" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.30" },
 ]
-provides-extras = ["transcription", "subtitles", "translation-anthropic", "translation-openai", "translation-ollama", "diarization", "tts", "separation", "api", "dev"]
+provides-extras = ["translation-anthropic", "translation-openai", "translation-ollama", "diarization", "tts", "separation", "api", "dev"]
 
 [[package]]
 name = "mpmath"

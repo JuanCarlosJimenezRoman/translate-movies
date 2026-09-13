@@ -10,11 +10,9 @@ dependencies = [
     "pydantic>=2.7",
     "python-dotenv>=1.0",
     "tqdm>=4.66",
-]
-
-[project.optional-dependencies]
-# Fase 1: transcripcion
-transcription = [
+    # Transcripcion y subtitulos son parte del uso normal del CLI desde la
+    # Fase 1 (no features futuras): van en dependencies, no en un extra que
+    # haya que acordarse de pedir. "uv sync" a secas ya deja el CLI usable.
     "faster-whisper>=1.0",
     # El wheel de av 18.x para linux_x86_64/cp311 viene incompleto (falta
     # av/video/frame.abi3.so), lo que rompe "import faster_whisper". 13.1.0 es
@@ -23,11 +21,11 @@ transcription = [
     # av (via su modulo compilado) importa 'cython' en tiempo de ejecucion sin
     # declararlo como dependencia propia. Sin esto, el import falla igual.
     "cython>=3.0",
-]
-# Fase 1: subtitulos (parsing/formato SRT)
-subtitles = [
+    # Fase 1: subtitulos (parsing/formato SRT)
     "srt>=3.5",
 ]
+
+[project.optional-dependencies]
 # Fase 1: proveedores de traduccion (instalar solo el que se vaya a usar)
 translation-anthropic = ["anthropic>=0.34"]
 translation-openai = ["openai>=1.40"]

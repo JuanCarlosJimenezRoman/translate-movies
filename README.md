@@ -25,16 +25,25 @@ En construcción — Fase 1 (subtítulos). Ver `docs/ROADMAP.md` para las fases 
 Requiere [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync                          # entorno base (CLI, modelos de datos)
-uv sync --extra transcription    # + faster-whisper (Fase 1)
-uv sync --extra subtitles        # + generación de .srt (Fase 1)
-uv sync --extra translation-anthropic   # o translation-openai / translation-ollama
-uv sync --extra dev              # herramientas de desarrollo (pytest, ruff, mypy)
+uv sync                          # CLI completo de Fase 1: new, analyze, transcribe
+uv sync --extra translation-anthropic   # + proveedor de traduccion (o -openai / -ollama)
+uv sync --extra dev              # + herramientas de desarrollo (pytest, ruff, mypy)
 ```
 
-Los extras están separados para no forzar la instalación de dependencias
-pesadas (whisper, pyannote, demucs) antes de llegar a la fase que las
-necesita.
+`uv sync` a secas ya deja el CLI usable de punta a punta para la Fase 1
+(extraccion + transcripcion): faster-whisper y la generacion de `.srt` son
+parte del uso normal del programa, no features futuras, asi que viven en
+`dependencies`, no en un extra que haya que acordarse de pedir. Los extras
+que sí quedan aparte son cosas genuinamente opcionales: qué proveedor de
+traduccion usar, y las dependencias pesadas de fases futuras (diarizacion,
+separacion de audio, API).
+
+**Importante:** `uv sync` (sin flags) reinstala el entorno para que quede
+*exactamente* igual al conjunto de extras que le pediste en esa llamada —
+si antes tenías `--extra dev` instalado y corres `uv sync` a secas, te borra
+pytest/ruff/mypy (no lo que está en `dependencies`, eso siempre se queda).
+Si vas a seguir trabajando en el codigo, usa `uv sync --extra dev` en vez de
+`uv sync` solo.
 
 **Nota si `uv sync` tarda muchísimo (minutos u horas) sin terminar:** probablemente
 esta carpeta está montada desde otro sistema (red, WSL, unidad de Windows) y

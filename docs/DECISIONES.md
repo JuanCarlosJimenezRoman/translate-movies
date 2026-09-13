@@ -13,6 +13,7 @@
 | 2026-09-13 | Video fuente | No se copia a `projects/<nombre>/source/`. `project.json` guarda la ruta absoluta del original y el pipeline lee de ahi, para no duplicar espacio en archivos de decenas de GB. `source/` queda reservado para un futuro flag `--copy-source` opcional. |
 | 2026-09-13 | Modelo Whisper (Fase 1) | `small` por defecto en CPU (buen balance calidad/velocidad), configurable por `--model` en el CLI (`tiny`/`base`/`small`/...). Cuantizacion `int8` para acelerar en CPU. |
 | 2026-09-13 | Python del proyecto | 3.11 via `uv python install` (no el 3.10 del sistema), porque onnxruntime (dependencia de faster-whisper) no publica wheels para 3.10. |
+| 2026-09-13 | Extras de `pyproject.toml` | `faster-whisper`, `av`, `cython` y `srt` pasaron de extras opcionales a `dependencies` base: son parte del uso normal del CLI desde la Fase 1, no features futuras. Motivo: Juan corrio `uv sync` (sin `--extra transcription`) despues de haberlo usado con el extra, y `uv sync` reconcilia el venv exactamente al conjunto de extras pedido en esa llamada, desinstalando lo demas -- eso rompio `movie-translator new`/`transcribe` en su maquina. Solo quedan como extras las cosas genuinamente opcionales: que proveedor de traduccion usar, y las dependencias pesadas de fases futuras. |
 
 ## Pendientes (bloquean o afectan fases futuras)
 
