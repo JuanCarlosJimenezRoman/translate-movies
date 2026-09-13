@@ -19,10 +19,9 @@ Tareas:
       contexto en cada llamada de traducción.
 - [ ] `subtitles`: generación de `.srt` con reglas de CPS/líneas/duración
       mínima (sección 8 de `ARCHITECTURE.md`).
-- [ ] `core/models`: `Segment`, `Project`, `project.json` con estado por etapa.
-- [ ] `core/pipeline`: orquestador mínimo que encadena extracción → transcripción
-      → traducción → subtítulos, reanudable si se interrumpe.
-- [ ] `apps/cli`: `movie-translator new`, `analyze`, `translate`.
+- [x] `core/models`: `Segment`, `Project`, `project.json` con estado por etapa. (project.py + segment.py + stage.py)
+- [x] `core/pipeline`: orquestador mínimo, empezando por la etapa de extracción (`run_extraction`, marca running/completed/failed y persiste en cada paso). Falta encadenar transcripción → traducción → subtítulos.
+- [x] `apps/cli`: `movie-translator new` (crea proyecto + extrae audio) y `analyze` (muestra estado). Falta `translate`.
 - [ ] `fixtures/`: un clip corto (2-5 min) para iterar sin esperar películas
       completas.
 - [ ] Prueba de extremo a extremo con el clip corto.

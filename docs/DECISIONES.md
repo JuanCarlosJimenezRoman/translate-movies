@@ -10,6 +10,7 @@
 | 2026-09-13 | Hardware (Fase 1) | Solo CPU. La Fase 1 (extracción + transcripción + traducción + subtítulos) no depende de GPU. |
 | 2026-09-13 | Patrón de proveedores | `translation/` y `tts/` usan la misma forma: interfaz base + carpeta `providers/`, en vez de estructuras distintas para cada módulo. |
 | 2026-09-13 | Cola de jobs (inicial) | SQLite + workers async, sin Redis/Airflow, hasta que de verdad haga falta escalar. |
+| 2026-09-13 | Video fuente | No se copia a `projects/<nombre>/source/`. `project.json` guarda la ruta absoluta del original y el pipeline lee de ahi, para no duplicar espacio en archivos de decenas de GB. `source/` queda reservado para un futuro flag `--copy-source` opcional. |
 
 ## Pendientes (bloquean o afectan fases futuras)
 

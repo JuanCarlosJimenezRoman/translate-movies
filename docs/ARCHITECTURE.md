@@ -135,7 +135,7 @@ implementación por proveedor. Un solo patrón que se aprende una vez y se repit
 
 ```
 projects/matrix/
-├── source/matrix.mkv
+├── source/          # reservado para un futuro flag --copy-source (ver mas abajo)
 ├── audio/{original,vocals,music,effects}.wav
 ├── transcription/{original.json, speakers.json}
 ├── translation/{draft.json, final.json, glossary.json}
@@ -144,6 +144,13 @@ projects/matrix/
 ├── output/matrix_es.mkv
 └── project.json
 ```
+
+El video original **no se copia** a `source/`: `project.json` guarda su ruta
+absoluta (`source_file`) y toda etapa que lo necesite lee directamente de ahi.
+Copiar peliculas de decenas de GB al crear cada proyecto agravaria el
+problema de espacio que se describe mas abajo; `source/` queda reservado
+para cuando se agregue un flag `--copy-source` opcional, para quien
+necesite un proyecto portable (ej. para moverlo a otra maquina).
 
 `project.json` guarda el estado de cada etapa (`pending` / `running` /
 `completed` / `failed`) y es lo que permite al CLI mostrar algo como:
