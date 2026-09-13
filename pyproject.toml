@@ -58,7 +58,7 @@ package = true
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatchling.build.targets.wheel]
+[tool.hatch.build.targets.wheel]
 packages = ["src/movie_translator", "apps"]
 
 [tool.ruff]
