@@ -31,6 +31,22 @@
   usar una pista de subtítulos en inglés ya embebida como atajo en vez de
   correr Whisper siempre.
 
+## Limitaciones conocidas
+
+- **`confidence` es por ventana de decodificacion, no por linea**: Whisper
+  (y por lo tanto faster-whisper) calcula `avg_logprob` (de donde sacamos
+  `confidence`) una vez por cada ventana de audio que decodifica (~30s), no
+  por cada segmento/linea de texto que arroja esa ventana. Si varias lineas
+  salen de la misma ventana, todas comparten exactamente el mismo valor de
+  confianza. Se confirmo esto con un clip real (Juan, fuera del entorno
+  remoto): 6 segmentos consecutivos con texto distinto, con el mismo
+  `confidence` a 16 decimales. No es un bug de nuestro codigo, es como
+  Whisper expone esta metrica. Si mas adelante se necesita confianza real
+  por linea (por ejemplo para marcar que lineas revisar a mano antes de
+  traducir), la forma correcta es pedir `word_timestamps=True` y promediar
+  la probabilidad por palabra dentro de cada segmento, en vez de usar
+  `avg_logprob` tal cual. No se implemento todavia (Fase 1 no lo necesita).
+
 ## Bloqueos de entorno detectados
 
 - **Descarga de modelos de Whisper bloqueada desde el entorno remoto de Claude**: el proxy de red de esta sesion remota devuelve 403 al intentar llegar a `huggingface.co` (de donde faster-whisper descarga los pesos), aunque `pypi.org` si es alcanzable. La transcripcion esta implementada y probada con mocks (43 tests), pero una corrida real con un modelo de verdad hay que hacerla desde una terminal normal en tu maquina (fuera de este entorno remoto), o descargando el modelo a mano y apuntando `--models-dir` a esa carpeta.

@@ -25,7 +25,7 @@ Tareas:
 - [x] `apps/cli`: `movie-translator new` (crea proyecto + extrae audio), `analyze` (muestra estado) y `transcribe` (corre faster-whisper). Falta `translate`.
 - [ ] `fixtures/`: un clip corto (2-5 min) para iterar sin esperar películas
       completas.
-- [ ] Prueba de extremo a extremo con el clip corto.
+- [x] Prueba de extremo a extremo con el clip corto. Validado por Juan en su propia maquina (fuera del entorno remoto, por el bloqueo a huggingface.co): `new` + `transcribe` con un clip real con voz/canto produjeron texto transcrito correcto en `transcription/original.json`.
 
 **Entregable:** `movie.mkv` + `movie.es.srt` generado por el CLI, corriendo en
 CPU.
