@@ -10,7 +10,7 @@ hay que resolver antes de darla por cerrada.
 
 Tareas:
 
-- [ ] `media/ffmpeg`: extraer pista de audio de un `.mkv`/`.mp4`.
+- [x] `media/ffmpeg`: extraer pista de audio de un `.mkv`/`.mp4`. (probe.py + extract.py, comandos CLI `probe` y `extract-audio`)
 - [ ] `transcription/whisper`: transcribir con faster-whisper → segmentos con
       timestamp + texto + confianza.
 - [ ] `translation/providers`: implementar `TranslationProvider` (interfaz) +
