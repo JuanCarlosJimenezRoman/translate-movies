@@ -36,6 +36,20 @@ Los extras están separados para no forzar la instalación de dependencias
 pesadas (whisper, pyannote, demucs) antes de llegar a la fase que las
 necesita.
 
+**Nota si `uv sync` tarda muchísimo (minutos u horas) sin terminar:** probablemente
+esta carpeta está montada desde otro sistema (red, WSL, unidad de Windows) y
+`.venv` termina viviendo en un filesystem con latencia muy alta por archivo.
+Solución: crea el entorno virtual fuera del mount y enlázalo:
+
+```bash
+mkdir -p ~/venvs/translate-movies
+ln -s ~/venvs/translate-movies .venv
+uv sync --extra dev
+```
+
+`.venv` ya está en `.gitignore` (como symlink o como carpeta real, cualquiera
+de las dos formas funciona).
+
 ## CLI (a medida que se implemente)
 
 ```bash
