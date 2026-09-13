@@ -62,7 +62,7 @@ def extract_audio(
         "-ac", str(channels),
         str(output_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise FFmpegError(
             f"ffmpeg fallo extrayendo audio de {video_path}", result.stderr

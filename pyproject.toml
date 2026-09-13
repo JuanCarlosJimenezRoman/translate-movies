@@ -65,5 +65,16 @@ packages = ["src/movie_translator", "apps"]
 line-length = 100
 target-version = "py310"
 
+[tool.ruff.lint]
+# EXE002: el mount de este proyecto no tiene permisos unix reales (todos los
+# archivos aparecen ejecutables), asi que esta regla da puro falso positivo.
+ignore = ["EXE002"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008: typer/fastapi usan "= typer.Option(...)" / "= Depends(...)" en los
+# defaults a proposito; no es el antipatron que la regla busca detectar.
+"apps/cli/*.py" = ["B008"]
+"apps/api/*.py" = ["B008"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

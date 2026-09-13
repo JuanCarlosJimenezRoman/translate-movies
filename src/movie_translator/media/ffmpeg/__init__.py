@@ -9,11 +9,11 @@ from movie_translator.media.ffmpeg.extract import (
 from movie_translator.media.ffmpeg.probe import MediaInfo, probe
 
 __all__ = [
+    "WHISPER_CHANNELS",
+    "WHISPER_SAMPLE_RATE",
     "FFmpegError",
     "FFmpegNotFoundError",
     "MediaInfo",
-    "probe",
     "extract_audio",
-    "WHISPER_SAMPLE_RATE",
-    "WHISPER_CHANNELS",
+    "probe",
 ]

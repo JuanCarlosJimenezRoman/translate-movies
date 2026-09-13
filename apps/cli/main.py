@@ -1,7 +1,6 @@
 """Punto de entrada del CLI. Se implementa fase a fase (ver docs/ROADMAP.md)."""
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -40,7 +39,7 @@ def probe_cmd(video: Path) -> None:
 @app.command("extract-audio")
 def extract_audio_cmd(
     video: Path,
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None, "--output", "-o", help="Ruta del .wav de salida (por defecto: junto al video)."
     ),
     overwrite: bool = typer.Option(False, "--overwrite", help="Sobreescribir si ya existe."),

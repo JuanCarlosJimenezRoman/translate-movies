@@ -55,6 +55,7 @@ def probe(path: Path) -> MediaInfo:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         raise FFmpegError(f"ffprobe fallo inspeccionando {path}", result.stderr)
