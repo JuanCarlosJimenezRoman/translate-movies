@@ -6,13 +6,15 @@ from pathlib import Path
 import typer
 
 from movie_translator.core.models import create_project, load_project
-from movie_translator.core.pipeline import run_extraction
+from movie_translator.core.models.stage import StageName, StageStatus
+from movie_translator.core.pipeline import run_extraction, run_transcription
 from movie_translator.media.ffmpeg import (
     FFmpegError,
     FFmpegNotFoundError,
     extract_audio,
     probe,
 )
+from movie_translator.transcription.whisper import DEFAULT_MODEL_SIZE, DEFAULT_MODELS_DIR
 
 app = typer.Typer(help="Movie Translator: traduce y subtitula peliculas con IA.")
 
@@ -158,6 +160,48 @@ def analyze_cmd(
     if project.source_file:
         typer.echo(f"Fuente:          {project.source_file}")
     typer.echo("")
+    for line in project.progress_lines():
+        typer.echo(f"  {line}")
+
+
+@app.command("transcribe")
+def transcribe_cmd(
+    name: str,
+    model: str = typer.Option(
+        DEFAULT_MODEL_SIZE, "--model", help="Tamano del modelo de faster-whisper."
+    ),
+    models_dir: Path = typer.Option(
+        DEFAULT_MODELS_DIR, "--models-dir", help="Carpeta donde se descargan/cachean los modelos."
+    ),
+    projects_root: Path = typer.Option(
+        DEFAULT_PROJECTS_ROOT, "--projects-root", help="Carpeta raiz de proyectos."
+    ),
+) -> None:
+    """Transcribe el audio de un proyecto ya creado (requiere 'new' antes)."""
+    try:
+        project, paths = load_project(projects_root, name)
+    except FileNotFoundError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    if project.stages.get(StageName.EXTRACTION) != StageStatus.COMPLETED:
+        typer.secho(
+            "Error: la etapa 'extraction' todavia no esta completa para este "
+            "proyecto. Corre 'movie-translator new' primero.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Transcribiendo con el modelo '{model}' (esto puede tardar unos minutos)...")
+
+    try:
+        run_transcription(project, paths, model_size=model, models_dir=models_dir)
+    except Exception as exc:
+        typer.secho(f"Error transcribiendo: {exc}", fg=typer.colors.RED)
+        typer.echo("La etapa 'transcription' quedo en 'failed'. Corrige el problema y reintenta.")
+        raise typer.Exit(code=1) from exc
+
+    typer.secho("Transcripcion completada.", fg=typer.colors.GREEN)
     for line in project.progress_lines():
         typer.echo(f"  {line}")
 

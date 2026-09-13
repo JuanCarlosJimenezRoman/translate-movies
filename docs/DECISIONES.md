@@ -11,6 +11,8 @@
 | 2026-09-13 | Patrón de proveedores | `translation/` y `tts/` usan la misma forma: interfaz base + carpeta `providers/`, en vez de estructuras distintas para cada módulo. |
 | 2026-09-13 | Cola de jobs (inicial) | SQLite + workers async, sin Redis/Airflow, hasta que de verdad haga falta escalar. |
 | 2026-09-13 | Video fuente | No se copia a `projects/<nombre>/source/`. `project.json` guarda la ruta absoluta del original y el pipeline lee de ahi, para no duplicar espacio en archivos de decenas de GB. `source/` queda reservado para un futuro flag `--copy-source` opcional. |
+| 2026-09-13 | Modelo Whisper (Fase 1) | `small` por defecto en CPU (buen balance calidad/velocidad), configurable por `--model` en el CLI (`tiny`/`base`/`small`/...). Cuantizacion `int8` para acelerar en CPU. |
+| 2026-09-13 | Python del proyecto | 3.11 via `uv python install` (no el 3.10 del sistema), porque onnxruntime (dependencia de faster-whisper) no publica wheels para 3.10. |
 
 ## Pendientes (bloquean o afectan fases futuras)
 
@@ -28,5 +30,9 @@
 - **Extraer subtítulos/pistas ya existentes en el MKV**: evaluar si conviene
   usar una pista de subtítulos en inglés ya embebida como atajo en vez de
   correr Whisper siempre.
+
+## Bloqueos de entorno detectados
+
+- **Descarga de modelos de Whisper bloqueada desde el entorno remoto de Claude**: el proxy de red de esta sesion remota devuelve 403 al intentar llegar a `huggingface.co` (de donde faster-whisper descarga los pesos), aunque `pypi.org` si es alcanzable. La transcripcion esta implementada y probada con mocks (43 tests), pero una corrida real con un modelo de verdad hay que hacerla desde una terminal normal en tu maquina (fuera de este entorno remoto), o descargando el modelo a mano y apuntando `--models-dir` a esa carpeta.
 
 Este documento se actualiza según se resuelvan preguntas o aparezcan nuevas.

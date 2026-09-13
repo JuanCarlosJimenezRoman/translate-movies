@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
+import apps.cli.main as cli_main
 from apps.cli.main import app
+from movie_translator.core.models import Segment
 
 runner = CliRunner()
+
+_FAKE_SEGMENTS = [Segment(start=0.0, end=1.0, text="hola", confidence=0.9)]
 
 
 def test_version_command() -> None:
@@ -97,3 +102,46 @@ def test_new_derives_name_from_filename(sample_video_with_audio: Path, tmp_path:
 
     assert result.exit_code == 0, result.stdout
     assert (projects_root / "sample_with_audio").is_dir()
+
+
+def test_transcribe_command_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, sample_video_with_audio: Path, tmp_path: Path
+) -> None:
+    projects_root = tmp_path / "projects"
+    monkeypatch.setattr(
+        cli_main, "run_transcription", lambda project, paths, **kw: project
+    )
+
+    new_result = runner.invoke(
+        app,
+        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+    )
+    assert new_result.exit_code == 0, new_result.stdout
+
+    transcribe_result = runner.invoke(
+        app, ["transcribe", "demo", "--projects-root", str(projects_root)]
+    )
+
+    assert transcribe_result.exit_code == 0, transcribe_result.stdout
+    assert "Transcripcion completada" in transcribe_result.stdout
+
+
+def test_transcribe_command_requires_extraction_first(tmp_path: Path) -> None:
+    from movie_translator.core.models import create_project
+
+    projects_root = tmp_path / "projects"
+    create_project(projects_root, "demo", source_language="en", target_language="es")
+
+    result = runner.invoke(app, ["transcribe", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 1
+    assert "extraction" in result.stdout
+
+
+def test_transcribe_command_missing_project(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app, ["transcribe", "no_existe", "--projects-root", str(tmp_path / "projects")]
+    )
+
+    assert result.exit_code == 1
+    assert "Error" in result.stdout

@@ -85,3 +85,9 @@ ignore = ["EXE002"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+[[tool.mypy.overrides]]
+# faster-whisper no publica type stubs ni marca py.typed.
+module = ["faster_whisper.*"]
+ignore_missing_imports = true

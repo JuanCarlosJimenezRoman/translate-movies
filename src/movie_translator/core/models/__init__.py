@@ -6,7 +6,7 @@ from movie_translator.core.models.project import (
     create_project,
     load_project,
 )
-from movie_translator.core.models.segment import Segment
+from movie_translator.core.models.segment import Segment, load_segments, save_segments
 from movie_translator.core.models.stage import (
     STAGE_ORDER,
     STAGE_STATUS_SYMBOL,
@@ -24,4 +24,6 @@ __all__ = [
     "StageStatus",
     "create_project",
     "load_project",
+    "load_segments",
+    "save_segments",
 ]

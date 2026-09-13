@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
@@ -33,3 +36,18 @@ class Segment(BaseModel):
     @property
     def duration(self) -> float:
         return self.end - self.start
+
+
+def save_segments(segments: list[Segment], path: Path) -> None:
+    """Guarda una lista de segmentos como JSON (ver docs/ARCHITECTURE.md, seccion 6)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [segment.model_dump(mode="json") for segment in segments]
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def load_segments(path: Path) -> list[Segment]:
+    """Carga una lista de segmentos guardada con save_segments()."""
+    if not path.exists():
+        raise FileNotFoundError(f"No existe el archivo de segmentos: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return [Segment.model_validate(item) for item in payload]

@@ -11,8 +11,9 @@ hay que resolver antes de darla por cerrada.
 Tareas:
 
 - [x] `media/ffmpeg`: extraer pista de audio de un `.mkv`/`.mp4`. (probe.py + extract.py, comandos CLI `probe` y `extract-audio`)
-- [ ] `transcription/whisper`: transcribir con faster-whisper → segmentos con
-      timestamp + texto + confianza.
+- [x] `transcription/whisper`: transcribir con faster-whisper → segmentos con
+      timestamp + texto + confianza. (transcribe.py, comando CLI `transcribe`;
+      modelo `small` por defecto en CPU, ver `DECISIONES.md`)
 - [ ] `translation/providers`: implementar `TranslationProvider` (interfaz) +
       un primer proveedor concreto (a decidir, ver `DECISIONES.md`).
 - [ ] `translation/glossary`: glosario persistente por proyecto, se pasa como
@@ -20,8 +21,8 @@ Tareas:
 - [ ] `subtitles`: generación de `.srt` con reglas de CPS/líneas/duración
       mínima (sección 8 de `ARCHITECTURE.md`).
 - [x] `core/models`: `Segment`, `Project`, `project.json` con estado por etapa. (project.py + segment.py + stage.py)
-- [x] `core/pipeline`: orquestador mínimo, empezando por la etapa de extracción (`run_extraction`, marca running/completed/failed y persiste en cada paso). Falta encadenar transcripción → traducción → subtítulos.
-- [x] `apps/cli`: `movie-translator new` (crea proyecto + extrae audio) y `analyze` (muestra estado). Falta `translate`.
+- [x] `core/pipeline`: `run_extraction` y `run_transcription`, cada una marca running/completed/failed y persiste en cada paso. Falta encadenar traducción → subtítulos.
+- [x] `apps/cli`: `movie-translator new` (crea proyecto + extrae audio), `analyze` (muestra estado) y `transcribe` (corre faster-whisper). Falta `translate`.
 - [ ] `fixtures/`: un clip corto (2-5 min) para iterar sin esperar películas
       completas.
 - [ ] Prueba de extremo a extremo con el clip corto.
