@@ -14,15 +14,17 @@ Tareas:
 - [x] `transcription/whisper`: transcribir con faster-whisper → segmentos con
       timestamp + texto + confianza. (transcribe.py, comando CLI `transcribe`;
       modelo `small` por defecto en CPU, ver `DECISIONES.md`)
-- [ ] `translation/providers`: implementar `TranslationProvider` (interfaz) +
-      un primer proveedor concreto (a decidir, ver `DECISIONES.md`).
-- [ ] `translation/glossary`: glosario persistente por proyecto, se pasa como
-      contexto en cada llamada de traducción.
+- [x] `translation/providers`: interfaz `TranslationProvider` + tres proveedores
+      (Anthropic, OpenAI, Ollama), elegibles por config (`--provider` / env
+      `TRANSLATION_PROVIDER`). Comando CLI `translate`.
+- [x] `translation/glossary`: glosario persistente por proyecto (`translation/glossary.json`),
+      se pasa como contexto en cada llamada de traducción. Nota: todavia no se
+      actualiza automaticamente (ver `DECISIONES.md`, limitaciones conocidas).
 - [ ] `subtitles`: generación de `.srt` con reglas de CPS/líneas/duración
       mínima (sección 8 de `ARCHITECTURE.md`).
 - [x] `core/models`: `Segment`, `Project`, `project.json` con estado por etapa. (project.py + segment.py + stage.py)
-- [x] `core/pipeline`: `run_extraction` y `run_transcription`, cada una marca running/completed/failed y persiste en cada paso. Falta encadenar traducción → subtítulos.
-- [x] `apps/cli`: `movie-translator new` (crea proyecto + extrae audio), `analyze` (muestra estado) y `transcribe` (corre faster-whisper). Falta `translate`.
+- [x] `core/pipeline`: `run_extraction`, `run_transcription` y `run_translation`, cada una marca running/completed/failed y persiste en cada paso. Falta encadenar subtítulos.
+- [x] `apps/cli`: `new` (crea proyecto + extrae audio), `analyze` (muestra estado), `transcribe` (faster-whisper) y `translate` (Anthropic/OpenAI/Ollama).
 - [ ] `fixtures/`: un clip corto (2-5 min) para iterar sin esperar películas
       completas.
 - [x] Prueba de extremo a extremo con el clip corto. Validado por Juan en su propia maquina (fuera del entorno remoto, por el bloqueo a huggingface.co): `new` + `transcribe` con un clip real con voz/canto produjeron texto transcrito correcto en `transcription/original.json`.
@@ -30,8 +32,7 @@ Tareas:
 **Entregable:** `movie.mkv` + `movie.es.srt` generado por el CLI, corriendo en
 CPU.
 
-**Abierto antes de cerrar la fase:** proveedor de traducción final (hoy es
-config, ver `DECISIONES.md`).
+**Abierto antes de cerrar la fase:** falta `subtitles` (generación de `.srt`) para tener el entregable completo de la Fase 1.
 
 ## Fase 2 — Script inteligente
 

@@ -145,3 +145,81 @@ def test_transcribe_command_missing_project(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Error" in result.stdout
+
+
+def test_translate_command_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, sample_video_with_audio: Path, tmp_path: Path
+) -> None:
+    from movie_translator.core.models import StageName, StageStatus, save_segments
+    from movie_translator.core.pipeline.transcription import TRANSCRIPT_FILENAME
+
+    projects_root = tmp_path / "projects"
+
+    def fake_run_transcription(project, paths, **kw):
+        project.mark_stage(StageName.TRANSCRIPTION, StageStatus.COMPLETED)
+        project.save(paths.project_json)
+        return project
+
+    monkeypatch.setattr(cli_main, "run_transcription", fake_run_transcription)
+
+    new_result = runner.invoke(
+        app,
+        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+    )
+    assert new_result.exit_code == 0, new_result.stdout
+
+    runner.invoke(app, ["transcribe", "demo", "--projects-root", str(projects_root)])
+    # run_transcription esta mockeado (no escribe el json real): lo dejamos nosotros
+    save_segments(_FAKE_SEGMENTS, projects_root / "demo" / "transcription" / TRANSCRIPT_FILENAME)
+
+    def fake_get_provider(name, **kwargs):
+        class _FakeProvider:
+            def translate(self, lines, **kw):
+                return [line.upper() for line in lines]
+
+        return _FakeProvider()
+
+    monkeypatch.setattr(cli_main, "get_provider", fake_get_provider)
+
+    translate_result = runner.invoke(
+        app, ["translate", "demo", "--projects-root", str(projects_root)]
+    )
+
+    assert translate_result.exit_code == 0, translate_result.stdout
+    assert "Traduccion completada" in translate_result.stdout
+    assert "✓ translation" in translate_result.stdout
+
+
+def test_translate_command_requires_transcription_first(
+    sample_video_with_audio: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    projects_root = tmp_path / "projects"
+    new_result = runner.invoke(
+        app,
+        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+    )
+    assert new_result.exit_code == 0, new_result.stdout
+
+    result = runner.invoke(app, ["translate", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 1
+    assert "transcription" in result.stdout
+
+
+def test_translate_command_unknown_provider_reports_error(tmp_path: Path) -> None:
+    from movie_translator.core.models import StageName, StageStatus, create_project
+
+    projects_root = tmp_path / "projects"
+    project, paths = create_project(
+        projects_root, "demo", source_language="en", target_language="es"
+    )
+    project.mark_stage(StageName.TRANSCRIPTION, StageStatus.COMPLETED)
+    project.save(paths.project_json)
+
+    result = runner.invoke(
+        app,
+        ["translate", "demo", "--provider", "deepseek", "--projects-root", str(projects_root)],
+    )
+
+    assert result.exit_code == 1
+    assert "anthropic, openai, ollama" in result.stdout

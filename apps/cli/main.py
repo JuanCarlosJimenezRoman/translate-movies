@@ -7,7 +7,12 @@ import typer
 
 from movie_translator.core.models import create_project, load_project
 from movie_translator.core.models.stage import StageName, StageStatus
-from movie_translator.core.pipeline import run_extraction, run_transcription
+from movie_translator.core.pipeline import (
+    DEFAULT_BATCH_SIZE,
+    run_extraction,
+    run_transcription,
+    run_translation,
+)
 from movie_translator.media.ffmpeg import (
     FFmpegError,
     FFmpegNotFoundError,
@@ -15,6 +20,7 @@ from movie_translator.media.ffmpeg import (
     probe,
 )
 from movie_translator.transcription.whisper import DEFAULT_MODEL_SIZE, DEFAULT_MODELS_DIR
+from movie_translator.translation.providers import TranslationError, get_provider
 
 app = typer.Typer(help="Movie Translator: traduce y subtitula peliculas con IA.")
 
@@ -202,6 +208,57 @@ def transcribe_cmd(
         raise typer.Exit(code=1) from exc
 
     typer.secho("Transcripcion completada.", fg=typer.colors.GREEN)
+    for line in project.progress_lines():
+        typer.echo(f"  {line}")
+
+
+@app.command("translate")
+def translate_cmd(
+    name: str,
+    provider: str | None = typer.Option(
+        None, "--provider", help="anthropic/openai/ollama (por defecto: TRANSLATION_PROVIDER o anthropic)."
+    ),
+    model: str | None = typer.Option(
+        None, "--model", help="Modelo a usar (por defecto, el que trae cada proveedor)."
+    ),
+    batch_size: int = typer.Option(
+        DEFAULT_BATCH_SIZE, "--batch-size", help="Lineas consecutivas por llamada al proveedor."
+    ),
+    projects_root: Path = typer.Option(
+        DEFAULT_PROJECTS_ROOT, "--projects-root", help="Carpeta raiz de proyectos."
+    ),
+) -> None:
+    """Traduce los segmentos ya transcritos de un proyecto."""
+    try:
+        project, paths = load_project(projects_root, name)
+    except FileNotFoundError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    if project.stages.get(StageName.TRANSCRIPTION) != StageStatus.COMPLETED:
+        typer.secho(
+            "Error: la etapa 'transcription' todavia no esta completa para este "
+            "proyecto. Corre 'movie-translator transcribe' primero.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        translation_provider = get_provider(provider, model=model)
+    except TranslationError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Traduciendo {project.source_language} -> {project.target_language}...")
+
+    try:
+        run_translation(project, paths, translation_provider, batch_size=batch_size)
+    except Exception as exc:
+        typer.secho(f"Error traduciendo: {exc}", fg=typer.colors.RED)
+        typer.echo("La etapa 'translation' quedo en 'failed'. Corrige el problema y reintenta.")
+        raise typer.Exit(code=1) from exc
+
+    typer.secho("Traduccion completada.", fg=typer.colors.GREEN)
     for line in project.progress_lines():
         typer.echo(f"  {line}")
 

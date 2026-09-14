@@ -32,8 +32,16 @@
   usar una pista de subtítulos en inglés ya embebida como atajo en vez de
   correr Whisper siempre.
 
+| 2026-09-14 | Interfaz de traduccion | `TranslationProvider.translate(lines, source_language, target_language, glossary) -> list[str]`: traduce lotes de lineas (no linea por linea), devuelve el mismo numero de lineas en el mismo orden. Los tres proveedores (Anthropic/OpenAI/Ollama) devuelven un array JSON de strings -- formato facil de validar y parsear igual sin importar el proveedor. |
+| 2026-09-14 | Tamano de lote de traduccion | 40 lineas consecutivas por llamada por defecto (`--batch-size`), como aproximacion a "agrupar por escena" (todavia no hay deteccion real de escenas). |
+
 ## Limitaciones conocidas
 
+- **El glosario no se actualiza automaticamente todavia**: `translation/glossary.json`
+  se lee y se le vuelve a pasar al proveedor en cada lote (para consistencia),
+  pero ningun proveedor extrae terminos nuevos de sus propias traducciones
+  todavia -- eso requiere mas contexto de personaje/escena (Fase 2). Por ahora
+  es un archivo editable a mano entre corridas.
 - **`confidence` es por ventana de decodificacion, no por linea**: Whisper
   (y por lo tanto faster-whisper) calcula `avg_logprob` (de donde sacamos
   `confidence`) una vez por cada ventana de audio que decodifica (~30s), no

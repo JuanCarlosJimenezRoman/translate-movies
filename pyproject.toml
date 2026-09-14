@@ -86,6 +86,14 @@ testpaths = ["tests"]
 
 [tool.mypy]
 [[tool.mypy.overrides]]
-# faster-whisper no publica type stubs ni marca py.typed.
-module = ["faster_whisper.*"]
+# faster-whisper no publica type stubs ni marca py.typed. anthropic/openai
+# si son bien tipados, pero son extras opcionales -- no siempre estan
+# instalados en el entorno donde corre mypy, y no queremos que eso rompa el
+# chequeo del resto del proyecto.
+module = ["faster_whisper.*", "anthropic.*", "openai.*"]
 ignore_missing_imports = true
+# "skip": ni siquiera abre/parsea el codigo fuente de estos paquetes (los
+# trata como Any). anthropic/openai son SDKs grandes y bien tipados, pero
+# analizarlos de verdad es lento y no aporta nada aqui -- solo los usamos
+# por su API publica, ya cubierta por nuestro propio codigo con mypy normal.
+follow_imports = "skip"
