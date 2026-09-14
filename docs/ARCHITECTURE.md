@@ -187,14 +187,26 @@ Segmento de transcripción (una línea de diálogo):
 }
 ```
 
-Mapa de hablantes (creado a mano en el checkpoint humano de la sección 3):
+Mapa de hablantes (`transcription/speakers.json`; `run_diarization` lo crea
+con `character: null` para cada `SPEAKER_NN` nuevo, el checkpoint humano de la
+sección 3 -- `movie-translator name-speakers`, prompt interactivo -- completa
+`character`; `voice` es de Fase 3/TTS y no se usa todavia):
 
 ```json
 {
-  "SPEAKER_01": { "character": "Neo", "voice": "voice_01" },
-  "SPEAKER_02": { "character": "Morpheus", "voice": "voice_02" }
+  "SPEAKER_01": { "character": "Neo", "voice": null },
+  "SPEAKER_02": { "character": "Morpheus", "voice": null }
 }
 ```
+
+**Asignación de hablante a cada segmento (Fase 2):** Whisper y pyannote son
+dos salidas independientes con sus propios cortes de tiempo. La regla de
+asignación es la estándar: a cada segmento le corresponde el hablante del
+turno de pyannote con el que más tiempo se solapa. Si un segmento no se
+solapa con ningún turno (voz superpuesta, ruido, turno no detectado),
+`speaker` queda en `None` -- no se inventa un hablante -- y esa línea
+simplemente queda sin contexto de personaje en la traducción (ver sección 7)
+hasta que se corrija a mano si hace falta.
 
 Glosario del proyecto (nuevo respecto al boceto original — ver
 `docs/DECISIONES.md` punto 4): un diccionario término→traducción que se
@@ -240,15 +252,37 @@ se fija en el código: se elige por configuración (variable de entorno /
 
 Cada llamada de traducción recibe:
 
-- el personaje que habla y su historial de voz (formal/informal, etc.),
-- el contexto de la escena,
 - el glosario acumulado del proyecto hasta ese punto,
+- el personaje que dice cada línea, cuando el proyecto ya paso por
+  diarizacion (Fase 2 -- ver mas abajo),
 - y, cuando aplica, la duración objetivo del hueco de tiempo (para el loop de
-  sincronización de la sección 9).
+  sincronización de la sección 9; todavía no implementado, Fase 4).
 
-No se traduce línea por línea de forma aislada: se agrupan por escena (o por
-un número razonable de líneas consecutivas) para que el modelo tenga contexto
-narrativo real.
+No se traduce línea por línea de forma aislada: se agrupan en lotes de
+`--batch-size` líneas consecutivas (40 por defecto), como aproximación a
+"agrupar por escena" -- todavía no hay detección real de límites de escena
+(ver `docs/DECISIONES.md`).
+
+### Contexto de personaje (Fase 2)
+
+`TranslationProvider.translate()` acepta un parámetro opcional `speakers:
+dict[str, str] | None`. Las claves son el índice de la línea dentro del lote
+que se está traduciendo, como string (`"0"`, `"1"`, ...), y los valores el
+nombre del personaje que la dice; una línea sin hablante identificado
+simplemente no aparece en el dict. `None` (o `{}`) es "sin contexto de
+personaje", exactamente el comportamiento de la Fase 1 -- ningún proveedor ni
+test existente se rompe por el parámetro nuevo.
+
+`core/pipeline/translation.py` arma este dict a partir de
+`transcription/speakers.json` (ver sección 6) y de `Segment.speaker`: si el
+hablante de una línea todavía no fue nombrado por el checkpoint humano
+(`movie-translator name-speakers`), se usa su etiqueta cruda (`SPEAKER_NN`)
+como mejor esfuerzo, en vez de omitir la línea del todo. Cuando `speakers` no
+es vacío, el mensaje de usuario que se le manda al proveedor cambia de un
+array de strings sueltos a un array de objetos `{"speaker": ..., "text":
+...}` (ver `translation/providers/prompt.py`); la respuesta esperada del
+modelo no cambia: sigue siendo siempre un array plano de N strings
+traducidos, en el mismo orden.
 
 ## 8. Subtítulos
 
@@ -325,7 +359,9 @@ Fase 1 (subtítulos) funciona razonablemente en CPU: FFmpeg, faster-whisper y
 la llamada al proveedor de traducción no requieren GPU. Las fases de
 diarización, TTS y separación de audio sí se benefician mucho de GPU NVIDIA
 (12+ GB VRAM); se evalúa migrar cuando se llegue a esas fases, sin bloquear el
-arranque del proyecto por eso.
+arranque del proyecto por eso. **Decisión (2026-09-14):** Fase 2 (incluida
+pyannote) también se queda en CPU por ahora -- la migración real a GPU sigue
+siendo Fase 7 del roadmap, no se adelanta (ver `docs/DECISIONES.md`).
 
 ## 14. Historial de este documento
 

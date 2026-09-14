@@ -34,20 +34,21 @@ class _UppercaseProvider(TranslationProvider):
     def __init__(self) -> None:
         self.calls: list[dict] = []
 
-    def translate(self, lines, *, source_language, target_language, glossary):
+    def translate(self, lines, *, source_language, target_language, glossary, speakers=None):
         self.calls.append(
             {
                 "lines": list(lines),
                 "source_language": source_language,
                 "target_language": target_language,
                 "glossary": dict(glossary),
+                "speakers": speakers,
             }
         )
         return [line.upper() for line in lines]
 
 
 class _RaisingProvider(TranslationProvider):
-    def translate(self, lines, *, source_language, target_language, glossary):
+    def translate(self, lines, *, source_language, target_language, glossary, speakers=None):
         raise TranslationError("boom")
 
 
@@ -136,3 +137,44 @@ def test_run_translation_marks_failed_on_provider_error(tmp_path: Path) -> None:
 
     reloaded = Project.load(paths.project_json)
     assert reloaded.stages[StageName.TRANSLATION] == StageStatus.FAILED
+
+
+def test_run_translation_passes_speaker_names(tmp_path: Path) -> None:
+    """Fase 2: si hay speakers.json, cada linea va acompanada del personaje
+    que la dice (por indice dentro del lote); sin hablante asignado, la
+    linea no aparece en el dict; con hablante detectado pero sin nombrar
+    todavia, se usa la etiqueta cruda (SPEAKER_NN) como mejor esfuerzo."""
+    from movie_translator.transcription.diarization import SpeakerInfo, save_speakers
+
+    project, paths = create_project(
+        tmp_path / "projects", "matrix", source_language="en", target_language="es"
+    )
+    segments = [
+        Segment(start=0.0, end=1.0, text="hello", speaker="SPEAKER_00"),
+        Segment(start=1.0, end=2.0, text="world", speaker="SPEAKER_01"),
+        Segment(start=2.0, end=3.0, text="silence", speaker=None),
+    ]
+    save_segments(segments, paths.transcription / TRANSCRIPT_FILENAME)
+    save_speakers(
+        {
+            "SPEAKER_00": SpeakerInfo(character="Neo"),
+            "SPEAKER_01": SpeakerInfo(character=None),
+        },
+        paths.speakers_json,
+    )
+    provider = _UppercaseProvider()
+
+    run_translation(project, paths, provider)
+
+    assert provider.calls[0]["speakers"] == {"0": "Neo", "1": "SPEAKER_01"}
+
+
+def test_run_translation_speakers_none_without_diarization(tmp_path: Path) -> None:
+    """Sin speakers.json (proyecto sin diarizar, como en Fase 1), el
+    comportamiento es identico: se pasa `speakers=None`."""
+    project, paths = _project_with_transcript(tmp_path)
+    provider = _UppercaseProvider()
+
+    run_translation(project, paths, provider)
+
+    assert provider.calls[0]["speakers"] is None

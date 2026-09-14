@@ -46,6 +46,7 @@ class OllamaTranslationProvider(TranslationProvider):
         source_language: str,
         target_language: str,
         glossary: dict[str, str],
+        speakers: dict[str, str] | None = None,
     ) -> list[str]:
         if not lines:
             return []
@@ -65,7 +66,7 @@ class OllamaTranslationProvider(TranslationProvider):
                     "stream": False,
                     "messages": [
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": build_user_message(lines)},
+                        {"role": "user", "content": build_user_message(lines, speakers)},
                     ],
                 },
                 timeout=self._timeout,

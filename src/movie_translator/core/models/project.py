@@ -120,6 +120,16 @@ class ProjectPaths:
         return self.root / "subtitles"
 
     @property
+    def speakers_json(self) -> Path:
+        """Mapa SPEAKER_NN -> personaje (ver docs/ARCHITECTURE.md, seccion 6).
+
+        Vive junto a la transcripcion (no en una carpeta propia): lo crea
+        `run_diarization` con placeholders y lo completa el checkpoint
+        humano ('movie-translator name-speakers').
+        """
+        return self.transcription / "speakers.json"
+
+    @property
     def output(self) -> Path:
         return self.root / "output"
 
@@ -165,8 +175,7 @@ def create_project(
     paths = ProjectPaths(root=projects_root / name)
     if paths.root.exists():
         raise FileExistsError(
-            f"El proyecto '{name}' ya existe en {paths.root}. Usa "
-            "load_project() para continuarlo."
+            f"El proyecto '{name}' ya existe en {paths.root}. Usa load_project() para continuarlo."
         )
 
     paths.ensure_dirs()

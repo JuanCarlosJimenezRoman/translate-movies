@@ -98,8 +98,10 @@ testpaths = ["tests"]
 # faster-whisper y srt no publican type stubs ni marcan py.typed.
 # anthropic/openai si son bien tipados, pero son extras opcionales -- no
 # siempre estan instalados en el entorno donde corre mypy, y no queremos que
-# eso rompa el chequeo del resto del proyecto.
-module = ["faster_whisper.*", "anthropic.*", "openai.*", "srt.*"]
+# eso rompa el chequeo del resto del proyecto. pyannote/torch (Fase 2,
+# diarizacion) son igual de opcionales -- extra "diarization", no instalado
+# por defecto.
+module = ["faster_whisper.*", "anthropic.*", "openai.*", "srt.*", "pyannote.*", "torch.*"]
 ignore_missing_imports = true
 # "skip": ni siquiera abre/parsea el codigo fuente de estos paquetes (los
 # trata como Any). anthropic/openai son SDKs grandes y bien tipados, pero

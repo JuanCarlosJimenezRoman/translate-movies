@@ -42,6 +42,7 @@ class AnthropicTranslationProvider(TranslationProvider):
         source_language: str,
         target_language: str,
         glossary: dict[str, str],
+        speakers: dict[str, str] | None = None,
     ) -> list[str]:
         if not lines:
             return []
@@ -58,7 +59,7 @@ class AnthropicTranslationProvider(TranslationProvider):
                 model=self._model,
                 max_tokens=MAX_TOKENS,
                 system=system_prompt,
-                messages=[{"role": "user", "content": build_user_message(lines)}],
+                messages=[{"role": "user", "content": build_user_message(lines, speakers)}],
             )
         except Exception as exc:
             raise TranslationError(f"Fallo llamando a Anthropic ({self._model}): {exc}") from exc

@@ -39,6 +39,7 @@ class OpenAITranslationProvider(TranslationProvider):
         source_language: str,
         target_language: str,
         glossary: dict[str, str],
+        speakers: dict[str, str] | None = None,
     ) -> list[str]:
         if not lines:
             return []
@@ -55,7 +56,7 @@ class OpenAITranslationProvider(TranslationProvider):
                 model=self._model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": build_user_message(lines)},
+                    {"role": "user", "content": build_user_message(lines, speakers)},
                 ],
             )
         except Exception as exc:

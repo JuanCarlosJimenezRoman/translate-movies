@@ -6,19 +6,28 @@ from pathlib import Path
 import typer
 
 from movie_translator.core.models import create_project, load_project
+from movie_translator.core.models.segment import load_segments
 from movie_translator.core.models.stage import StageName, StageStatus
 from movie_translator.core.pipeline import (
     DEFAULT_BATCH_SIZE,
+    run_diarization,
     run_extraction,
     run_subtitles,
     run_transcription,
     run_translation,
 )
+from movie_translator.core.pipeline.transcription import TRANSCRIPT_FILENAME
 from movie_translator.media.ffmpeg import (
     FFmpegError,
     FFmpegNotFoundError,
     extract_audio,
     probe,
+)
+from movie_translator.transcription.diarization import (
+    DEFAULT_DEVICE,
+    DiarizationError,
+    load_speakers,
+    save_speakers,
 )
 from movie_translator.transcription.whisper import DEFAULT_MODEL_SIZE, DEFAULT_MODELS_DIR
 from movie_translator.translation.providers import TranslationError, get_provider
@@ -213,11 +222,112 @@ def transcribe_cmd(
         typer.echo(f"  {line}")
 
 
+@app.command("diarize")
+def diarize_cmd(
+    name: str,
+    hf_token: str | None = typer.Option(
+        None, "--hf-token", help="Token de Hugging Face (por defecto, env HF_TOKEN)."
+    ),
+    device: str = typer.Option(DEFAULT_DEVICE, "--device", help="'cpu' o 'cuda'."),
+    projects_root: Path = typer.Option(
+        DEFAULT_PROJECTS_ROOT, "--projects-root", help="Carpeta raiz de proyectos."
+    ),
+) -> None:
+    """Detecta hablantes (pyannote) y asigna un SPEAKER_NN a cada segmento transcrito."""
+    try:
+        project, paths = load_project(projects_root, name)
+    except FileNotFoundError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    if project.stages.get(StageName.TRANSCRIPTION) != StageStatus.COMPLETED:
+        typer.secho(
+            "Error: la etapa 'transcription' todavia no esta completa para este "
+            "proyecto. Corre 'movie-translator transcribe' primero.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    typer.echo("Detectando hablantes (esto puede tardar unos minutos)...")
+
+    try:
+        run_diarization(project, paths, hf_token=hf_token, device=device)
+    except DiarizationError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        typer.echo("La etapa 'diarization' quedo en 'failed'. Corrige el problema y reintenta.")
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        typer.secho(f"Error diarizando: {exc}", fg=typer.colors.RED)
+        typer.echo("La etapa 'diarization' quedo en 'failed'. Corrige el problema y reintenta.")
+        raise typer.Exit(code=1) from exc
+
+    typer.secho("Diarizacion completada.", fg=typer.colors.GREEN)
+    typer.echo(f"  -> Nombra los hablantes con: movie-translator name-speakers {name}")
+    for line in project.progress_lines():
+        typer.echo(f"  {line}")
+
+
+@app.command("name-speakers")
+def name_speakers_cmd(
+    name: str,
+    projects_root: Path = typer.Option(
+        DEFAULT_PROJECTS_ROOT, "--projects-root", help="Carpeta raiz de proyectos."
+    ),
+) -> None:
+    """Checkpoint humano: recorre cada hablante detectado y pide su nombre de personaje.
+
+    Muestra hasta 3 lineas de ejemplo de cada SPEAKER_NN para poder
+    identificarlo. Se puede correr mas de una vez (ej. para corregir un
+    nombre): los hablantes ya nombrados se muestran con su nombre actual
+    como default, listo para confirmar con Enter.
+    """
+    try:
+        project, paths = load_project(projects_root, name)
+    except FileNotFoundError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    if project.stages.get(StageName.DIARIZATION) != StageStatus.COMPLETED:
+        typer.secho(
+            "Error: la etapa 'diarization' todavia no esta completa para este "
+            "proyecto. Corre 'movie-translator diarize' primero.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    speakers = load_speakers(paths.speakers_json)
+    if not speakers:
+        typer.echo("No se detectaron hablantes en este proyecto.")
+        raise typer.Exit(code=0)
+
+    segments = load_segments(paths.transcription / TRANSCRIPT_FILENAME)
+
+    for label in sorted(speakers):
+        info = speakers[label]
+        examples = [seg.text for seg in segments if seg.speaker == label][:3]
+
+        typer.echo("")
+        typer.secho(label, fg=typer.colors.CYAN, bold=True)
+        for example in examples:
+            typer.echo(f'    "{example}"')
+
+        default_name = info.character or label
+        character = typer.prompt("  Nombre del personaje", default=default_name)
+        speakers[label] = info.model_copy(update={"character": character})
+
+    save_speakers(speakers, paths.speakers_json)
+    typer.secho(
+        f"\nspeakers.json actualizado ({len(speakers)} hablante(s)).", fg=typer.colors.GREEN
+    )
+
+
 @app.command("translate")
 def translate_cmd(
     name: str,
     provider: str | None = typer.Option(
-        None, "--provider", help="anthropic/openai/ollama (por defecto: TRANSLATION_PROVIDER o anthropic)."
+        None,
+        "--provider",
+        help="anthropic/openai/ollama (por defecto: TRANSLATION_PROVIDER o anthropic).",
     ),
     model: str | None = typer.Option(
         None, "--model", help="Modelo a usar (por defecto, el que trae cada proveedor)."

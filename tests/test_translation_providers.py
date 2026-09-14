@@ -67,6 +67,22 @@ def test_anthropic_provider_translates(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "en" in _FakeAnthropicMessages.last_create_kwargs["system"]
 
 
+def test_anthropic_provider_forwards_speakers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(anthropic_provider_module.anthropic, "Anthropic", _FakeAnthropicClient)
+    provider = AnthropicTranslationProvider(api_key="test-key")
+
+    provider.translate(
+        ["hello"],
+        source_language="en",
+        target_language="es",
+        glossary={},
+        speakers={"0": "Neo"},
+    )
+
+    sent_message = _FakeAnthropicMessages.last_create_kwargs["messages"][0]["content"]
+    assert json.loads(sent_message) == [{"speaker": "Neo", "text": "hello"}]
+
+
 def test_anthropic_provider_empty_lines_short_circuits(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(anthropic_provider_module.anthropic, "Anthropic", _FakeAnthropicClient)
     provider = AnthropicTranslationProvider(api_key="test-key")
@@ -127,9 +143,7 @@ def test_openai_provider_translates(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(openai_provider_module.openai, "OpenAI", _FakeOpenAIClient)
     provider = OpenAITranslationProvider(api_key="test-key", model="gpt-test")
 
-    result = provider.translate(
-        ["hello"], source_language="en", target_language="es", glossary={}
-    )
+    result = provider.translate(["hello"], source_language="en", target_language="es", glossary={})
 
     assert result == ["hola"]
     assert _FakeOpenAICompletions.last_create_kwargs["model"] == "gpt-test"
@@ -152,9 +166,7 @@ def test_ollama_provider_translates(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ollama_provider_module.httpx, "post", fake_post)
     provider = OllamaTranslationProvider(model="llama-test", base_url="http://localhost:11434")
 
-    result = provider.translate(
-        ["hello"], source_language="en", target_language="es", glossary={}
-    )
+    result = provider.translate(["hello"], source_language="en", target_language="es", glossary={})
 
     assert result == ["hola"]
     assert captured["url"] == "http://localhost:11434/api/chat"

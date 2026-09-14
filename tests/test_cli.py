@@ -31,8 +31,10 @@ def test_new_then_analyze_end_to_end(sample_video_with_audio: Path, tmp_path: Pa
         [
             "new",
             str(sample_video_with_audio),
-            "--name", "demo",
-            "--projects-root", str(projects_root),
+            "--name",
+            "demo",
+            "--projects-root",
+            str(projects_root),
         ],
     )
     assert new_result.exit_code == 0, new_result.stdout
@@ -40,9 +42,7 @@ def test_new_then_analyze_end_to_end(sample_video_with_audio: Path, tmp_path: Pa
     assert "Audio extraido correctamente" in new_result.stdout
     assert "✓ extraction" in new_result.stdout
 
-    analyze_result = runner.invoke(
-        app, ["analyze", "demo", "--projects-root", str(projects_root)]
-    )
+    analyze_result = runner.invoke(app, ["analyze", "demo", "--projects-root", str(projects_root)])
     assert analyze_result.exit_code == 0, analyze_result.stdout
     assert "demo" in analyze_result.stdout
     assert "en -> es" in analyze_result.stdout
@@ -57,7 +57,8 @@ def test_new_rejects_missing_video(tmp_path: Path) -> None:
         [
             "new",
             str(tmp_path / "no_existe.mp4"),
-            "--projects-root", str(tmp_path / "projects"),
+            "--projects-root",
+            str(tmp_path / "projects"),
         ],
     )
 
@@ -70,8 +71,10 @@ def test_new_rejects_duplicate_project(sample_video_with_audio: Path, tmp_path: 
     args = [
         "new",
         str(sample_video_with_audio),
-        "--name", "demo",
-        "--projects-root", str(projects_root),
+        "--name",
+        "demo",
+        "--projects-root",
+        str(projects_root),
     ]
 
     first = runner.invoke(app, args)
@@ -108,13 +111,18 @@ def test_transcribe_command_end_to_end(
     monkeypatch: pytest.MonkeyPatch, sample_video_with_audio: Path, tmp_path: Path
 ) -> None:
     projects_root = tmp_path / "projects"
-    monkeypatch.setattr(
-        cli_main, "run_transcription", lambda project, paths, **kw: project
-    )
+    monkeypatch.setattr(cli_main, "run_transcription", lambda project, paths, **kw: project)
 
     new_result = runner.invoke(
         app,
-        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+        [
+            "new",
+            str(sample_video_with_audio),
+            "--name",
+            "demo",
+            "--projects-root",
+            str(projects_root),
+        ],
     )
     assert new_result.exit_code == 0, new_result.stdout
 
@@ -164,7 +172,14 @@ def test_translate_command_end_to_end(
 
     new_result = runner.invoke(
         app,
-        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+        [
+            "new",
+            str(sample_video_with_audio),
+            "--name",
+            "demo",
+            "--projects-root",
+            str(projects_root),
+        ],
     )
     assert new_result.exit_code == 0, new_result.stdout
 
@@ -196,7 +211,14 @@ def test_translate_command_requires_transcription_first(
     projects_root = tmp_path / "projects"
     new_result = runner.invoke(
         app,
-        ["new", str(sample_video_with_audio), "--name", "demo", "--projects-root", str(projects_root)],
+        [
+            "new",
+            str(sample_video_with_audio),
+            "--name",
+            "demo",
+            "--projects-root",
+            str(projects_root),
+        ],
     )
     assert new_result.exit_code == 0, new_result.stdout
 
@@ -288,3 +310,80 @@ def test_subtitles_command_reports_readability_warnings(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.stdout
     assert "para revisar" in result.stdout
+
+
+def test_diarize_command_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from movie_translator.core.models import StageName, StageStatus, create_project, save_segments
+    from movie_translator.core.pipeline.extraction import ORIGINAL_AUDIO_FILENAME
+    from movie_translator.core.pipeline.transcription import TRANSCRIPT_FILENAME
+
+    projects_root = tmp_path / "projects"
+    project, paths = create_project(
+        projects_root, "demo", source_language="en", target_language="es"
+    )
+    (paths.audio / ORIGINAL_AUDIO_FILENAME).write_bytes(b"fake wav")
+    save_segments(_FAKE_SEGMENTS, paths.transcription / TRANSCRIPT_FILENAME)
+    project.mark_stage(StageName.TRANSCRIPTION, StageStatus.COMPLETED)
+    project.save(paths.project_json)
+
+    def fake_run_diarization(project, paths, **kw):
+        project.mark_stage(StageName.DIARIZATION, StageStatus.COMPLETED)
+        project.save(paths.project_json)
+        return project
+
+    monkeypatch.setattr(cli_main, "run_diarization", fake_run_diarization)
+
+    result = runner.invoke(app, ["diarize", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Diarizacion completada" in result.stdout
+    assert "name-speakers demo" in result.stdout
+
+
+def test_diarize_command_requires_transcription_first(tmp_path: Path) -> None:
+    from movie_translator.core.models import create_project
+
+    projects_root = tmp_path / "projects"
+    create_project(projects_root, "demo", source_language="en", target_language="es")
+
+    result = runner.invoke(app, ["diarize", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 1
+    assert "transcription" in result.stdout
+
+
+def test_name_speakers_command_writes_speakers_json(tmp_path: Path) -> None:
+    from movie_translator.core.models import StageName, StageStatus, create_project, save_segments
+    from movie_translator.core.pipeline.transcription import TRANSCRIPT_FILENAME
+    from movie_translator.transcription.diarization import SpeakerInfo, load_speakers, save_speakers
+
+    projects_root = tmp_path / "projects"
+    project, paths = create_project(
+        projects_root, "demo", source_language="en", target_language="es"
+    )
+    save_segments(_FAKE_SEGMENTS, paths.transcription / TRANSCRIPT_FILENAME)
+    save_speakers({"SPEAKER_00": SpeakerInfo()}, paths.speakers_json)
+    project.mark_stage(StageName.DIARIZATION, StageStatus.COMPLETED)
+    project.save(paths.project_json)
+
+    result = runner.invoke(
+        app,
+        ["name-speakers", "demo", "--projects-root", str(projects_root)],
+        input="Neo\n",
+    )
+
+    assert result.exit_code == 0, result.stdout
+    speakers = load_speakers(paths.speakers_json)
+    assert speakers["SPEAKER_00"].character == "Neo"
+
+
+def test_name_speakers_command_requires_diarization_first(tmp_path: Path) -> None:
+    from movie_translator.core.models import create_project
+
+    projects_root = tmp_path / "projects"
+    create_project(projects_root, "demo", source_language="en", target_language="es")
+
+    result = runner.invoke(app, ["name-speakers", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 1
+    assert "diarization" in result.stdout

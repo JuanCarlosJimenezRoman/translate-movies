@@ -72,3 +72,27 @@ def test_parse_translation_response_wrong_type_raises() -> None:
 def test_parse_translation_response_wrong_count_raises() -> None:
     with pytest.raises(TranslationError, match="1 lineas, se esperaban 2"):
         parse_translation_response(json.dumps(["hola"]), expected_count=2)
+
+
+def test_build_user_message_without_speakers_is_plain_array() -> None:
+    message = build_user_message(["hello", "world"], None)
+
+    assert json.loads(message) == ["hello", "world"]
+
+
+def test_build_user_message_with_speakers_embeds_character_per_line() -> None:
+    message = build_user_message(["hello", "world"], {"0": "Neo", "1": "Morpheus"})
+
+    assert json.loads(message) == [
+        {"speaker": "Neo", "text": "hello"},
+        {"speaker": "Morpheus", "text": "world"},
+    ]
+
+
+def test_build_user_message_with_partial_speakers_uses_null_for_missing() -> None:
+    message = build_user_message(["hello", "world"], {"0": "Neo"})
+
+    assert json.loads(message) == [
+        {"speaker": "Neo", "text": "hello"},
+        {"speaker": None, "text": "world"},
+    ]

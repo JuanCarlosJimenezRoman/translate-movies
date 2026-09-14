@@ -47,11 +47,20 @@ solo texto suelto.
 
 Tareas:
 
-- [ ] `transcription/diarization`: pyannote.audio, `SPEAKER_01`, `SPEAKER_02`...
-- [ ] Checkpoint humano (CLI): comando para nombrar hablantes
-      (`SPEAKER_01 → Neo`) antes de traducir.
-- [ ] `translation`: pasar personaje + contexto de escena en cada llamada.
-- [ ] Adaptación de diálogos (no traducción literal línea por línea).
+- [x] `transcription/diarization`: pyannote.audio, `SPEAKER_01`, `SPEAKER_02`...
+      (`diarize_audio` + `assign_speakers`, mayor solapamiento de tiempo).
+- [x] Checkpoint humano (CLI): comando para nombrar hablantes
+      (`movie-translator name-speakers`, prompt interactivo por hablante con
+      lineas de ejemplo) antes de traducir.
+- [x] `translation`: pasar personaje en cada llamada (`speakers: dict[str,
+      str]` en `TranslationProvider.translate()`, por índice de línea dentro
+      del lote -- ver `docs/ARCHITECTURE.md` seccion 7). Contexto de escena
+      (agrupar por escena real, no por lote fijo de N líneas) queda para
+      cuando exista deteccion de escenas -- no bloqueaba esta tarea.
+- [ ] Adaptación de diálogos (no traducción literal línea por línea): el
+      prompt ya invita a esto cuando hay contexto de personaje: falta
+      evaluar con traducciones reales (Ollama/Anthropic) si el resultado
+      efectivamente adapta el tono, no solo traduce.
 
 **Entregable:** `speakers.json` + traducción con nombres de personaje y
 consistencia de glosario a lo largo de toda la película.
