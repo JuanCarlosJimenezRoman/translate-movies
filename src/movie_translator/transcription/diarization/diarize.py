@@ -26,6 +26,45 @@ DEFAULT_MODEL = "pyannote/speaker-diarization-3.1"
 DEFAULT_DEVICE = "cpu"
 
 
+def _load_pipeline(pipeline_cls: type, model: str, token: str):
+    """Carga el pipeline soportando ambas APIs de pyannote.audio.
+
+    pyannote.audio 4.0+ renombro el parametro `use_auth_token` de
+    `Pipeline.from_pretrained()` a `token` (alineado con huggingface_hub).
+    `pyproject.toml` solo fija `pyannote.audio>=3.3`, asi que este helper
+    prueba la firma nueva primero y cae a la vieja si el kwarg no existe,
+    para no depender de que version este instalada.
+    """
+    try:
+        return pipeline_cls.from_pretrained(model, token=token)
+    except TypeError:
+        return pipeline_cls.from_pretrained(model, use_auth_token=token)
+
+
+def _run_pipeline(pipeline: object, audio_path: Path):
+    """Corre `pipeline` sobre `audio_path`, con fallback si falta torchcodec.
+
+    pyannote.audio 4.0+ decodifica el audio con torchcodec cuando se le pasa
+    una ruta de archivo, y torchcodec necesita una build de FFmpeg
+    "full-shared" (con las DLLs) que muchas instalaciones de Windows no
+    tienen -- falla con "Could not load libtorchcodec". Si pasa eso,
+    precargamos el audio con torchaudio (backend soundfile, no depende de
+    FFmpeg/torchcodec para WAV) y se lo pasamos al pipeline como waveform,
+    formato que pyannote soporta desde siempre y que evita el decoder de
+    torchcodec por completo. Cualquier otro error se relanza tal cual.
+    """
+    try:
+        return pipeline(str(audio_path))
+    except Exception as exc:
+        if "torchcodec" not in str(exc).lower():
+            raise
+
+        import torchaudio
+
+        waveform, sample_rate = torchaudio.load(str(audio_path))
+        return pipeline({"waveform": waveform, "sample_rate": sample_rate})
+
+
 def diarize_audio(
     audio_path: Path,
     *,
@@ -62,12 +101,12 @@ def diarize_audio(
         ) from exc
 
     try:
-        pipeline = Pipeline.from_pretrained(model, use_auth_token=token)
+        pipeline = _load_pipeline(Pipeline, model, token)
         if device != "cpu":
             import torch
 
             pipeline.to(torch.device(device))
-        diarization = pipeline(str(audio_path))
+        diarization = _run_pipeline(pipeline, audio_path)
     except Exception as exc:
         raise DiarizationError(
             f"Fallo diarizando {audio_path} con el modelo '{model}': {exc}. Si es un "

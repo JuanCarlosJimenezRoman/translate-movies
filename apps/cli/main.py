@@ -4,6 +4,15 @@ import re
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
+
+# Carga .env de la carpeta actual (o de un ancestro) ANTES de leer cualquier
+# variable de entorno (ANTHROPIC_API_KEY, HF_TOKEN, TRANSLATION_PROVIDER...):
+# sin esto, python-dotenv quedaba declarado como dependencia pero nunca se
+# usaba, asi que un .env con HF_TOKEN/API keys no se aplicaba solo con
+# tenerlo en el archivo -- habia que exportarlo a mano en la shell. No-op si
+# no existe .env (ej. en tests, o corriendo desde otra carpeta).
+load_dotenv()
 
 from movie_translator.core.models import create_project, load_project
 from movie_translator.core.models.segment import load_segments
