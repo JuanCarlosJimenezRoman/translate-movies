@@ -23,6 +23,15 @@ from movie_translator.translation.providers.prompt import (
 DEFAULT_MODEL = "llama3.1"
 DEFAULT_BASE_URL = "http://localhost:11434"
 DEFAULT_TIMEOUT_SECONDS = 120.0
+# Sin esto, Ollama usa su propio default de contexto (2048-4096 tokens
+# segun version/modelo), que un batch de --batch-size lineas (40 por
+# defecto) mas el prompt de sistema (glosario incluido) puede superar
+# facilmente con modelos chicos (ej. llama3.2:3b) -- el modelo se corta a
+# mitad del array JSON de salida en vez de devolver un error claro, y
+# parse_translation_response falla con "Expecting ',' delimiter" o
+# similar. 8192 da margen razonable sin exigir demasiada RAM/VRAM extra
+# para un modelo de pocos B de parametros.
+DEFAULT_NUM_CTX = 8192
 
 
 class OllamaTranslationProvider(TranslationProvider):
@@ -32,12 +41,16 @@ class OllamaTranslationProvider(TranslationProvider):
         model: str | None = None,
         base_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        num_ctx: int | None = None,
     ) -> None:
         self._model = model or os.environ.get("TRANSLATION_OLLAMA_MODEL", DEFAULT_MODEL)
         self._base_url = (
             base_url or os.environ.get("TRANSLATION_OLLAMA_BASE_URL", DEFAULT_BASE_URL)
         ).rstrip("/")
         self._timeout = timeout
+        self._num_ctx = num_ctx or int(
+            os.environ.get("TRANSLATION_OLLAMA_NUM_CTX", DEFAULT_NUM_CTX)
+        )
 
     def translate(
         self,
@@ -68,6 +81,7 @@ class OllamaTranslationProvider(TranslationProvider):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": build_user_message(lines, speakers)},
                     ],
+                    "options": {"num_ctx": self._num_ctx},
                 },
                 timeout=self._timeout,
             )
