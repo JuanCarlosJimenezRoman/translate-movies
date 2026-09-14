@@ -2340,7 +2340,10 @@ api = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 dev = [
+    { name = "anthropic" },
+    { name = "httpx" },
     { name = "mypy" },
+    { name = "openai" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -2364,14 +2367,17 @@ translation-openai = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'dev'", specifier = ">=0.34" },
     { name = "anthropic", marker = "extra == 'translation-anthropic'", specifier = ">=0.34" },
     { name = "av", specifier = "==13.1.0" },
     { name = "cython", specifier = ">=3.0" },
     { name = "demucs", marker = "extra == 'separation'", specifier = ">=4.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.111" },
     { name = "faster-whisper", specifier = ">=1.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'translation-ollama'", specifier = ">=0.27" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "openai", marker = "extra == 'dev'", specifier = ">=1.40" },
     { name = "openai", marker = "extra == 'translation-openai'", specifier = ">=1.40" },
     { name = "pyannote-audio", marker = "extra == 'diarization'", specifier = ">=3.3" },
     { name = "pydantic", specifier = ">=2.7" },
