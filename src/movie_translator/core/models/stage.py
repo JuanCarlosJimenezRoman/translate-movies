@@ -13,6 +13,7 @@ class StageName(str, Enum):
     TRANSCRIPTION = "transcription"
     DIARIZATION = "diarization"
     TRANSLATION = "translation"
+    SUBTITLES = "subtitles"
     TTS = "tts"
     MIXING = "mixing"
     ENCODING = "encoding"
@@ -26,6 +27,7 @@ STAGE_ORDER: tuple[StageName, ...] = (
     StageName.TRANSCRIPTION,
     StageName.DIARIZATION,
     StageName.TRANSLATION,
+    StageName.SUBTITLES,
     StageName.TTS,
     StageName.MIXING,
     StageName.ENCODING,

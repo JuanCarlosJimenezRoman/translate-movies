@@ -21,19 +21,24 @@ Tareas:
 - [x] `translation/glossary`: glosario persistente por proyecto (`translation/glossary.json`),
       se pasa como contexto en cada llamada de traducción. Nota: todavia no se
       actualiza automaticamente (ver `DECISIONES.md`, limitaciones conocidas).
-- [ ] `subtitles`: generación de `.srt` con reglas de CPS/líneas/duración
-      mínima (sección 8 de `ARCHITECTURE.md`).
+- [x] `subtitles`: generación de `.srt` con reglas de CPS/líneas/duración
+      mínima (sección 8 de `ARCHITECTURE.md`). Modulo `subtitles/` (rules.py +
+      generate.py) + etapa `core/pipeline/subtitles.py` + comando CLI
+      `subtitles`. No trunca ni acorta la traduccion para forzar que cumpla
+      las reglas: envuelve el texto, extiende cues de flash sin invadir el
+      siguiente, y devuelve una lista de warnings (cues que superan CPS o
+      lineas recomendadas) para revision manual, tal como pide
+      `ARCHITECTURE.md`.
 - [x] `core/models`: `Segment`, `Project`, `project.json` con estado por etapa. (project.py + segment.py + stage.py)
-- [x] `core/pipeline`: `run_extraction`, `run_transcription` y `run_translation`, cada una marca running/completed/failed y persiste en cada paso. Falta encadenar subtítulos.
-- [x] `apps/cli`: `new` (crea proyecto + extrae audio), `analyze` (muestra estado), `transcribe` (faster-whisper) y `translate` (Anthropic/OpenAI/Ollama).
+- [x] `core/pipeline`: `run_extraction`, `run_transcription`, `run_translation` y `run_subtitles`, cada una marca running/completed/failed y persiste en cada paso.
+- [x] `apps/cli`: `new` (crea proyecto + extrae audio), `analyze` (muestra estado), `transcribe` (faster-whisper), `translate` (Anthropic/OpenAI/Ollama) y `subtitles` (genera el `.srt` final).
 - [ ] `fixtures/`: un clip corto (2-5 min) para iterar sin esperar películas
       completas.
 - [x] Prueba de extremo a extremo con el clip corto. Validado por Juan en su propia maquina (fuera del entorno remoto, por el bloqueo a huggingface.co): `new` + `transcribe` con un clip real con voz/canto produjeron texto transcrito correcto en `transcription/original.json`.
 
 **Entregable:** `movie.mkv` + `movie.es.srt` generado por el CLI, corriendo en
-CPU.
-
-**Abierto antes de cerrar la fase:** falta `subtitles` (generación de `.srt`) para tener el entregable completo de la Fase 1.
+CPU. **Fase 1 completa** (queda pendiente solo el fixture corto de la lista
+de tareas, que no bloquea el entregable).
 
 ## Fase 2 — Script inteligente
 

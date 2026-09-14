@@ -223,3 +223,68 @@ def test_translate_command_unknown_provider_reports_error(tmp_path: Path) -> Non
 
     assert result.exit_code == 1
     assert "anthropic, openai, ollama" in result.stdout
+
+
+def test_subtitles_command_end_to_end(tmp_path: Path) -> None:
+    from movie_translator.core.models import (
+        StageName,
+        StageStatus,
+        create_project,
+        save_segments,
+    )
+    from movie_translator.core.pipeline import TRANSLATED_FILENAME
+
+    projects_root = tmp_path / "projects"
+    project, paths = create_project(
+        projects_root, "demo", source_language="en", target_language="es"
+    )
+    project.mark_stage(StageName.TRANSLATION, StageStatus.COMPLETED)
+    project.save(paths.project_json)
+    save_segments(_FAKE_SEGMENTS, paths.translation / TRANSLATED_FILENAME)
+
+    result = runner.invoke(app, ["subtitles", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Subtitulos generados" in result.stdout
+    assert "✓ subtitles" in result.stdout
+    assert (paths.subtitles / "es.srt").exists()
+
+
+def test_subtitles_command_requires_translation_first(tmp_path: Path) -> None:
+    from movie_translator.core.models import create_project
+
+    projects_root = tmp_path / "projects"
+    create_project(projects_root, "demo", source_language="en", target_language="es")
+
+    result = runner.invoke(app, ["subtitles", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 1
+    assert "translation" in result.stdout
+
+
+def test_subtitles_command_reports_readability_warnings(tmp_path: Path) -> None:
+    from movie_translator.core.models import (
+        Segment,
+        StageName,
+        StageStatus,
+        create_project,
+        save_segments,
+    )
+    from movie_translator.core.pipeline import TRANSLATED_FILENAME
+
+    projects_root = tmp_path / "projects"
+    project, paths = create_project(
+        projects_root, "demo", source_language="en", target_language="es"
+    )
+    project.mark_stage(StageName.TRANSLATION, StageStatus.COMPLETED)
+    project.save(paths.project_json)
+    long_text = " ".join(["palabra"] * 30)
+    save_segments(
+        [Segment(start=0.0, end=1.0, text=long_text)],
+        paths.translation / TRANSLATED_FILENAME,
+    )
+
+    result = runner.invoke(app, ["subtitles", "demo", "--projects-root", str(projects_root)])
+
+    assert result.exit_code == 0, result.stdout
+    assert "para revisar" in result.stdout

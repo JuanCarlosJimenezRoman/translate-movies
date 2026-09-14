@@ -140,7 +140,7 @@ projects/matrix/
 ├── transcription/{original.json, speakers.json}
 ├── translation/{draft.json, final.json, glossary.json}
 ├── voices/speaker_01.wav ...
-├── subtitles/{original.srt, spanish.srt}
+├── subtitles/es.srt      # <target_language>.srt (implementado solo el traducido; original.srt queda para el futuro)
 ├── output/matrix_es.mkv
 └── project.json
 ```

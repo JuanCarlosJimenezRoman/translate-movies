@@ -35,6 +35,9 @@
 
 | 2026-09-14 | Interfaz de traduccion | `TranslationProvider.translate(lines, source_language, target_language, glossary) -> list[str]`: traduce lotes de lineas (no linea por linea), devuelve el mismo numero de lineas en el mismo orden. Los tres proveedores (Anthropic/OpenAI/Ollama) devuelven un array JSON de strings -- formato facil de validar y parsear igual sin importar el proveedor. |
 | 2026-09-14 | Tamano de lote de traduccion | 40 lineas consecutivas por llamada por defecto (`--batch-size`), como aproximacion a "agrupar por escena" (todavia no hay deteccion real de escenas). |
+| 2026-09-14 | Etapa `subtitles` en el pipeline | Se agrego `StageName.SUBTITLES` entre `TRANSLATION` y `TTS` en `STAGE_ORDER`. Los `project.json` viejos que no tienen esa clave en `stages` siguen cargando bien: se tratan como `pending` (`Project.pending_stage`/`progress_lines` usan `.get()` con default). |
+| 2026-09-14 | Subtitulos: no truncar ni acortar texto para "cumplir" las reglas | `subtitles/generate.py` nunca corta el texto traducido para que quepa en el maximo de lineas/CPS -- eso cambiaria la traduccion sin que nadie lo revise. En cambio: envuelve el texto (puede terminar en mas lineas de las recomendadas), extiende cues mas cortos que 1s hasta el minimo sin invadir el siguiente cue, y devuelve una lista de warnings (cue, timestamp, regla incumplida) que el CLI muestra para revision manual. Coincide con lo que pide `ARCHITECTURE.md` seccion 8 ("marca los cues que no cumplen para revision"). |
+| 2026-09-14 | Nombre del archivo de subtitulos | `subtitles/<target_language>.srt` (ej. `es.srt`), no un nombre fijo tipo `spanish.srt` -- se deriva del codigo de idioma del proyecto para que funcione igual sin importar el par de idiomas. |
 
 ## Limitaciones conocidas
 

@@ -10,6 +10,7 @@ from movie_translator.core.models.stage import StageName, StageStatus
 from movie_translator.core.pipeline import (
     DEFAULT_BATCH_SIZE,
     run_extraction,
+    run_subtitles,
     run_transcription,
     run_translation,
 )
@@ -259,6 +260,48 @@ def translate_cmd(
         raise typer.Exit(code=1) from exc
 
     typer.secho("Traduccion completada.", fg=typer.colors.GREEN)
+    for line in project.progress_lines():
+        typer.echo(f"  {line}")
+
+
+@app.command("subtitles")
+def subtitles_cmd(
+    name: str,
+    projects_root: Path = typer.Option(
+        DEFAULT_PROJECTS_ROOT, "--projects-root", help="Carpeta raiz de proyectos."
+    ),
+) -> None:
+    """Genera el .srt final a partir de la traduccion ya completa de un proyecto."""
+    try:
+        project, paths = load_project(projects_root, name)
+    except FileNotFoundError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    if project.stages.get(StageName.TRANSLATION) != StageStatus.COMPLETED:
+        typer.secho(
+            "Error: la etapa 'translation' todavia no esta completa para este "
+            "proyecto. Corre 'movie-translator translate' primero.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        _, warnings = run_subtitles(project, paths)
+    except Exception as exc:
+        typer.secho(f"Error generando subtitulos: {exc}", fg=typer.colors.RED)
+        typer.echo("La etapa 'subtitles' quedo en 'failed'. Corrige el problema y reintenta.")
+        raise typer.Exit(code=1) from exc
+
+    typer.secho("Subtitulos generados.", fg=typer.colors.GREEN)
+    typer.echo(f"  -> {paths.subtitles / f'{project.target_language}.srt'}")
+    if warnings:
+        typer.secho(
+            f"  {len(warnings)} cue(s) para revisar (no cumplen reglas de legibilidad):",
+            fg=typer.colors.YELLOW,
+        )
+        for warning in warnings:
+            typer.echo(f"    - {warning}")
     for line in project.progress_lines():
         typer.echo(f"  {line}")
 
