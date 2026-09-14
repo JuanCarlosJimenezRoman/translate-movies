@@ -17,6 +17,7 @@ Tareas:
 - [x] `translation/providers`: interfaz `TranslationProvider` + tres proveedores
       (Anthropic, OpenAI, Ollama), elegibles por config (`--provider` / env
       `TRANSLATION_PROVIDER`). Comando CLI `translate`.
+      Prueba real de extremo a extremo confirmada por Juan en su maquina: `transcribe` (faster-whisper, modelo small) + `translate --provider ollama --model llama3.2:3b` sobre un clip real produjeron texto en ingles correctamente transcrito y traducido al espanol en `translation/final.json` (UTF-8 correcto; el mojibake que se vio al usar `type` en cmd.exe es un problema de la consola de Windows, no del archivo).
 - [x] `translation/glossary`: glosario persistente por proyecto (`translation/glossary.json`),
       se pasa como contexto en cada llamada de traducción. Nota: todavia no se
       actualiza automaticamente (ver `DECISIONES.md`, limitaciones conocidas).
