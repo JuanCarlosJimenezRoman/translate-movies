@@ -15,7 +15,11 @@ from typing import ClassVar
 
 import pytest
 
-from movie_translator.transcription.whisper import TranscriptionError, transcribe_audio
+from movie_translator.transcription.whisper import (
+    DEFAULT_VAD_PARAMETERS,
+    TranscriptionError,
+    transcribe_audio,
+)
 
 
 @dataclass
@@ -86,6 +90,41 @@ def test_transcribe_audio_passes_language_and_model_size(
 def test_transcribe_audio_missing_file_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         transcribe_audio(tmp_path / "no_existe.wav")
+
+
+def test_transcribe_audio_uses_permissive_vad_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """El VAD por defecto debe ser mas permisivo que el de faster-whisper
+    (threshold=0.5) para no descartar canciones enteras -- ver el comentario
+    junto a DEFAULT_VAD_PARAMETERS en transcribe.py."""
+    monkeypatch.setattr(
+        "movie_translator.transcription.whisper.transcribe.WhisperModel", _FakeWhisperModel
+    )
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"fake wav")
+
+    transcribe_audio(audio)
+
+    kwargs = _FakeWhisperModel.last_transcribe_kwargs
+    assert kwargs["vad_filter"] is True
+    assert kwargs["vad_parameters"] == DEFAULT_VAD_PARAMETERS
+    assert kwargs["vad_parameters"]["threshold"] < 0.5
+
+
+def test_transcribe_audio_allows_overriding_vad_parameters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "movie_translator.transcription.whisper.transcribe.WhisperModel", _FakeWhisperModel
+    )
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"fake wav")
+    custom = {"threshold": 0.5, "min_silence_duration_ms": 2000, "speech_pad_ms": 400}
+
+    transcribe_audio(audio, vad_parameters=custom)
+
+    assert _FakeWhisperModel.last_transcribe_kwargs["vad_parameters"] == custom
 
 
 def test_transcribe_audio_wraps_model_errors(

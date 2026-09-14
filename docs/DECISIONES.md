@@ -14,6 +14,7 @@
 | 2026-09-13 | Modelo Whisper (Fase 1) | `small` por defecto en CPU (buen balance calidad/velocidad), configurable por `--model` en el CLI (`tiny`/`base`/`small`/...). Cuantizacion `int8` para acelerar en CPU. |
 | 2026-09-13 | Python del proyecto | 3.11 via `uv python install` (no el 3.10 del sistema), porque onnxruntime (dependencia de faster-whisper) no publica wheels para 3.10. |
 | 2026-09-13 | Extras de `pyproject.toml` | `faster-whisper`, `av`, `cython` y `srt` pasaron de extras opcionales a `dependencies` base: son parte del uso normal del CLI desde la Fase 1, no features futuras. Motivo: Juan corrio `uv sync` (sin `--extra transcription`) despues de haberlo usado con el extra, y `uv sync` reconcilia el venv exactamente al conjunto de extras pedido en esa llamada, desinstalando lo demas -- eso rompio `movie-translator new`/`transcribe` en su maquina. Solo quedan como extras las cosas genuinamente opcionales: que proveedor de traduccion usar, y las dependencias pesadas de fases futuras. |
+| 2026-09-14 | VAD de transcripcion mas permisivo | `transcribe_audio()` baja los parametros del VAD de faster-whisper (`threshold` 0.5->0.2, `min_silence_duration_ms` 2000->1000) en vez de usar los defaults de la libreria. Motivo: con los defaults, canciones (voz cantada + musica de fondo) se clasifican como "no es voz" y se descartan enteras sin que Whisper llegue a intentarlas -- confirmado con `projects/prueba` (cancion de ~4 min): con defaults solo salian 6 de 35 segmentos reales (11-37s de 245s). El VAD sigue activo (no se desactiva del todo) para no perder la proteccion contra alucinaciones en silencios reales de dialogo. Ver "Limitaciones conocidas" mas abajo: esto ayuda pero no recupera una cancion completa. |
 
 ## Pendientes (bloquean o afectan fases futuras)
 
@@ -42,6 +43,17 @@
   pero ningun proveedor extrae terminos nuevos de sus propias traducciones
   todavia -- eso requiere mas contexto de personaje/escena (Fase 2). Por ahora
   es un archivo editable a mano entre corridas.
+- **El VAD permisivo no recupera canciones completas, solo mejora el caso**:
+  se probo bajar `threshold` hasta 0.05 sobre el mismo clip de `projects/prueba`
+  y ni asi se recupero el audio completo (maximo ~78s de 245s, y de forma no
+  monotona: 0.1 dio mejor cobertura que 0.05). Para audio con canto sostenido
+  sobre musica, la unica forma confirmada de transcribirlo completo es
+  `vad_filter=False` (ver `transcribe_audio(..., vad_parameters=...)` -- hoy
+  no hay forma de desactivar el VAD del todo sin tocar el codigo, no hay flag
+  de CLI para eso). Si en el futuro aparecen escenas musicales dentro de una
+  pelicula real (no solo el clip de prueba), esto va a necesitar resolverse
+  de verdad -- por ejemplo separando la pista de musica (Fase 4, `demucs`)
+  antes de transcribir esa escena, en vez de solo afinar el VAD.
 - **`confidence` es por ventana de decodificacion, no por linea**: Whisper
   (y por lo tanto faster-whisper) calcula `avg_logprob` (de donde sacamos
   `confidence`) una vez por cada ventana de audio que decodifica (~30s), no
@@ -59,5 +71,6 @@
 ## Bloqueos de entorno detectados
 
 - **Descarga de modelos de Whisper bloqueada desde el entorno remoto de Claude**: el proxy de red de esta sesion remota devuelve 403 al intentar llegar a `huggingface.co` (de donde faster-whisper descarga los pesos), aunque `pypi.org` si es alcanzable. La transcripcion esta implementada y probada con mocks (43 tests), pero una corrida real con un modelo de verdad hay que hacerla desde una terminal normal en tu maquina (fuera de este entorno remoto), o descargando el modelo a mano y apuntando `--models-dir` a esa carpeta.
+- **`.venv` en la carpeta del proyecto es de Juan (Windows), no de Claude**: un venv de Python no es portable entre SO (binarios/paths distintos). Cuando Claude opera sobre esta carpeta desde su propio acceso (que corre en un Linux separado, aunque vea los mismos archivos), correr `uv sync`/`uv run` sin cuidado intenta reemplazar el `.venv` de Windows por uno de Linux -- a veces se queda a medio borrar (`Operation not permitted` en archivos sueltos como `.venv/.gitignore`) y deja el entorno de Juan roto. Ya paso una vez (2026-09-14) y se corrigio borrando el `.venv` a medias y dejando que Juan lo regenere solo. **Regla para sesiones futuras de Claude**: nunca tocar `.venv` en esta carpeta; usar `export UV_PROJECT_ENVIRONMENT=~/venvs/translate-movies-linux` (ruta fuera del mount, dentro del propio entorno de Claude) antes de cualquier `uv sync`/`uv run` propio, para que el venv de Linux de Claude y el `.venv` de Windows de Juan nunca se pisen.
 
 Este documento se actualiza según se resuelvan preguntas o aparezcan nuevas.

@@ -24,6 +24,21 @@ DEFAULT_DEVICE = "cpu"
 # una perdida de calidad minima. En GPU se usaria "float16" (Fase 7).
 DEFAULT_COMPUTE_TYPE = "int8"
 
+# El VAD (deteccion de voz) por defecto de faster-whisper (threshold=0.5,
+# min_silence_duration_ms=2000) esta afinado para dialogo hablado. Con
+# canciones (voz cantada + musica de fondo) frecuentemente clasifica tramos
+# enteros como "no es voz" y los descarta por completo -- Whisper ni siquiera
+# llega a intentarlos (confirmado con projects/prueba: con los defaults solo
+# se transcribian 6 de 35 segmentos reales de una cancion de ~4 min). Bajamos
+# el threshold y el min_silence_duration_ms para que sea mas permisivo, sin
+# desactivar el VAD del todo -- eso seguiria protegiendo contra alucinaciones
+# en silencios reales de pelicula. Ver docs/DECISIONES.md.
+DEFAULT_VAD_PARAMETERS: dict[str, float | int] = {
+    "threshold": 0.2,
+    "min_silence_duration_ms": 1000,
+    "speech_pad_ms": 400,
+}
+
 
 def _confidence_from_logprob(avg_logprob: float) -> float:
     """Aproxima una confianza en [0, 1] a partir del avg_logprob de whisper.
@@ -43,6 +58,7 @@ def transcribe_audio(
     models_dir: Path = DEFAULT_MODELS_DIR,
     device: str = DEFAULT_DEVICE,
     compute_type: str = DEFAULT_COMPUTE_TYPE,
+    vad_parameters: dict[str, float | int] | None = None,
 ) -> list[Segment]:
     """Transcribe `audio_path` y devuelve sus segmentos, ordenados por tiempo.
 
@@ -69,6 +85,7 @@ def transcribe_audio(
             str(audio_path),
             language=language,
             vad_filter=True,
+            vad_parameters=vad_parameters or DEFAULT_VAD_PARAMETERS,
         )
         return [
             Segment(
